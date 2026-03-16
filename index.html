@@ -2358,7 +2358,8 @@ function show(tabId){
   };
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
-  if(history.replaceState)history.replaceState(null,'','/?tab='+tabId);
+  // Only update URL in browser mode, not in standalone PWA mode
+  if(history.replaceState&&!navigator.standalone)history.replaceState(null,'','/?tab='+tabId);
 }
 function renderCurrent(){show(curTab);}
 
