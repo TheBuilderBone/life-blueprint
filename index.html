@@ -122,8 +122,8 @@ body{
 }
 .nav-btn .ni{font-size:20px;line-height:1;}
 .nav-btn .nl{
-  font-family:'DM Mono',monospace;font-size:8px;
-  letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+  font-family:'DM Mono',monospace;font-size:7px;
+  letter-spacing:.3px;text-transform:uppercase;color:var(--muted);
 }
 .nav-btn.active .nl{color:var(--accent);}
 .nav-btn.active::before{
@@ -132,7 +132,7 @@ body{
 }
 
 /* ============================================================ LAYOUT */
-.wrap{padding:12px 16px 0;max-width:600px;margin:0 auto;}
+.wrap{padding:0 16px 0;max-width:600px;margin:0 auto;}
 .section{margin-top:20px;}
 .section:first-child{margin-top:0;}
 
@@ -536,7 +536,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
   </div>
   <div class="sub-nav" id="sub-nav"></div>
   <div class="main" id="main">
-    <div class="wrap" id="content"></div>
+    <div class="wrap" id="content"><div style="padding:40px 16px;text-align:center"><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Loading Blueprint...</div></div></div>
   </div>
   <nav class="bottom-nav">
     <button class="nav-btn" id="nb-today" onclick="navGroup('today')"><div class="ni">⚡</div><div class="nl">Today</div></button>
@@ -544,6 +544,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
     <button class="nav-btn" id="nb-finance" onclick="navGroup('finance')"><div class="ni">💰</div><div class="nl">Finance</div></button>
     <button class="nav-btn" id="nb-build" onclick="navGroup('build')"><div class="ni">🏗️</div><div class="nl">Build</div></button>
     <button class="nav-btn" id="nb-reflect" onclick="navGroup('reflect')"><div class="ni">📓</div><div class="nl">Reflect</div></button>
+    <button class="nav-btn" id="nb-settings" onclick="navGroup('settings')"><div class="ni">⚙️</div><div class="nl">Settings</div></button>
   </nav>
 </div>
 
@@ -987,7 +988,11 @@ Respond in EXACT JSON:
         messages:[{role:'user',content:PROMPTS[type]}],
       }),
     });
-    if(!res.ok)return null;
+    if(!res.ok){
+      const errData=await res.json().catch(()=>({}));
+      console.error('Anthropic API error:',res.status,errData);
+      return {_error:true,_status:res.status,_message:errData?.error?.message||'Unknown error'};
+    }
     const data=await res.json();
     const text=data.content?.[0]?.text||'';
     const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
@@ -1021,7 +1026,18 @@ async function loadRec(type,icon,title,tag,contextData){
   if(!bodyEl)return;
   if(!data){
     bodyEl.className='rec-body';
-    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Add your Anthropic API key to enable recommendations. See SETUP_GUIDE.txt.</div>`;
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Go to <b style="color:var(--text)">Reflect → Setup</b> and enter your Anthropic API key.</div>`;
+    return;
+  }
+  if(data._error){
+    bodyEl.className='rec-body';
+    const msg=data._status===401?'Invalid API key — go to Reflect → Setup and re-enter your Anthropic key':
+              data._status===429?'Rate limit hit — wait a minute and tap Refresh':
+              data._status===400?'API error 400 — your key may be invalid or out of credits':
+              `Error ${data._status}: ${data._message}`;
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--red);margin-bottom:8px">⚠ ${msg}</div>
+    <button class="btn btn-sm btn-ghost" onclick="refreshRec('${type}')">Try Again</button>`;
+    if(actEl)actEl.style.display='flex';
     return;
   }
   bodyEl.className='rec-body';
@@ -1075,112 +1091,155 @@ function renderDashboard(){
   const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const isWed=dow===2;const isThu=dow===3;
   const dayColor=isWed?'var(--gold)':isThu?'var(--teal)':'var(--accent)';
-  const dayTag=isWed?'🏠 Progress Day — Your most valuable day':isThu?'🌿 Recovery Day — Protect this':'💼 Work Day';
+  const dayTag=isWed?'🏠 Progress Day':isThu?'🌿 Recovery Day':'💼 Work Day';
   const lastSleep=S.sleep[`${wk}_${dow>0?dow-1:6}`];
   const todayCal=S.calories[dk]?S.calories[dk].entries.reduce((a,e)=>a+(e.cal||0),0):0;
   const habitsDone=HABITS.filter(h2=>S.habits[`${wk}_${h2.id}_${dow}`]===1).length;
   const effC=effColor(eff.total);
+  const greeting=today.getHours()<12?'Good morning':'Good evening';
+  const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);
 
   document.getElementById('content').innerHTML=`
-  <!-- Day header -->
-  <div style="padding-top:4px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;text-transform:uppercase;line-height:1">${dayNames[dow]}, ${today.toLocaleDateString('en-US',{month:'long',day:'numeric'})}</div>
-    <div style="font-family:'DM Mono',monospace;font-size:10px;color:${dayColor};margin-top:3px;letter-spacing:1px">${dayTag}</div>
+  <!-- HERO SECTION -->
+  <div style="margin:-0px -16px 0;padding:20px 16px 16px;background:linear-gradient(160deg,rgba(255,85,0,.12) 0%,rgba(61,139,255,.06) 50%,rgba(0,204,122,.05) 100%);border-bottom:1px solid var(--border);position:relative;overflow:hidden">
+    <!-- Background accent circles -->
+    <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,85,0,.08) 0%,transparent 70%);pointer-events:none"></div>
+    <div style="position:absolute;bottom:-20px;left:-20px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(0,204,122,.06) 0%,transparent 70%);pointer-events:none"></div>
+
+    <!-- Greeting + date -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">${greeting}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;text-transform:uppercase;line-height:1;color:var(--text)">${dayNames[dow]}</div>
+        <div style="font-size:13px;color:var(--soft);margin-top:3px">${today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="position:relative;width:80px;height:80px">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" fill="none" stroke="var(--dim)" stroke-width="7"/>
+            <circle cx="40" cy="40" r="32" fill="none" stroke="${effC}" stroke-width="7"
+              stroke-linecap="round" stroke-dasharray="${2*Math.PI*32}"
+              stroke-dashoffset="${2*Math.PI*32*(1-eff.total/100)}"
+              transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;line-height:1;color:${effC}">${eff.total}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1px">TODAY</div>
+          </div>
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:${dayColor};margin-top:4px;letter-spacing:1px">${dayTag}</div>
+      </div>
+    </div>
+
+    <!-- Priority banner -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px" onclick="show('checkin')" style="cursor:pointer">
+      <div style="font-size:18px">${ci.priority?'🎯':'💭'}</div>
+      <div style="flex:1">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Today's Priority</div>
+        <div style="font-size:14px;font-weight:600;color:${ci.priority?'var(--text)':'var(--muted)'}">${ci.priority||'Tap to set your #1 priority for today'}</div>
+        ${ci.obstacle?`<div style="font-size:11px;color:var(--gold);margin-top:2px">⚡ Watch for: ${ci.obstacle}</div>`:''}
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent)">${ci.priority?'Edit →':'Set →'}</div>
+    </div>
+
+    <!-- 4 stat pills -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div style="background:rgba(0,204,122,.1);border:1px solid rgba(0,204,122,.2);border-radius:9px;padding:10px 8px;text-align:center">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${habitsDone>=6?'var(--green)':habitsDone>=4?'var(--gold)':'var(--text)'};line-height:1">${habitsDone}/${HABITS.length}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:1px">HABITS</div>
+      </div>
+      <div style="background:rgba(61,139,255,.1);border:1px solid rgba(61,139,255,.2);border-radius:9px;padding:10px 8px;text-align:center">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${todayCal>0?todayCal>2400?'var(--red)':'var(--blue)':'var(--muted)'};line-height:1">${todayCal>0?todayCal:'—'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:1px">CAL</div>
+      </div>
+      <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:9px;padding:10px 8px;text-align:center">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${lastSleep?lastSleep.hrs>=7?'var(--green)':lastSleep.hrs>=5?'var(--gold)':'var(--red)':'var(--muted)'};line-height:1">${lastSleep?lastSleep.hrs+'h':'—'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:1px">SLEEP</div>
+      </div>
+      <div style="background:rgba(240,160,0,.1);border:1px solid rgba(240,160,0,.2);border-radius:9px;padding:10px 8px;text-align:center">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${scores.overall!==null?sc(scores.overall):'var(--muted)'};line-height:1">${scores.overall!==null?scores.overall:'—'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:1px">SCORE</div>
+      </div>
+    </div>
   </div>
 
-  <!-- Efficiency Score Panel -->
+  <!-- EFFICIENCY BREAKDOWN -->
   <div class="section">
-    <div class="eff-panel">
-      <div class="eff-top">
-        <div class="eff-ring">
-          <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle cx="44" cy="44" r="36" fill="none" stroke="var(--dim)" stroke-width="8"/>
-            <circle cx="44" cy="44" r="36" fill="none" stroke="${effC}" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="${2*Math.PI*36}"
-              stroke-dashoffset="${2*Math.PI*36*(1-eff.total/100)}"
-              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
-          </svg>
-          <div class="eff-ring-center">
-            <div class="eff-score-num" style="color:${effC}">${eff.total}</div>
-            <div class="eff-score-lbl">today</div>
-          </div>
-        </div>
-        <div class="eff-info">
-          <div class="eff-title">${effLabel(eff.total)}</div>
-          <div class="eff-desc">Daily efficiency score. Resets at midnight. Earn points by completing your priority, following your schedule, hitting calories, and exercising.</div>
-          <div class="eff-bars">
-            ${[['Priority',eff.priority.pts,eff.priority.max,eff.priority.done],['Schedule',eff.schedule.pts,eff.schedule.max,eff.schedule.done],['Calories',eff.calories.pts,eff.calories.max,eff.calories.done],['Exercise',eff.exercise.pts,eff.exercise.max,eff.exercise.done]].map(([l,p,m,done])=>`
-            <div class="eff-bar-row">
-              <div class="eff-bar-lbl" style="color:${done?'var(--text)':'var(--muted)'}">${done?'✓':' '} ${l}</div>
-              <div class="eff-bar-track"><div class="eff-bar-fill" style="width:${Math.round(p/m*100)}%;background:${done?'var(--green)':'var(--dim)'}"></div></div>
-              <div class="eff-bar-pts" style="color:${done?'var(--green)':'var(--muted)'}">${p}/${m}</div>
-            </div>`).join('')}
-          </div>
-        </div>
+    <div class="sec-lbl">Daily Efficiency</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)">
+        ${[['Priority',eff.priority.pts,eff.priority.max,eff.priority.done,'var(--accent)','🎯'],
+           ['Schedule',eff.schedule.pts,eff.schedule.max,eff.schedule.done,'var(--blue)','📅'],
+           ['Calories',eff.calories.pts,eff.calories.max,eff.calories.done,'var(--teal)','🍽️'],
+           ['Exercise',eff.exercise.pts,eff.exercise.max,eff.exercise.done,'var(--green)','💪']].map(([l,p,m,done,c,ic])=>`
+        <div style="background:${done?c+'18':'var(--card)'};padding:11px 8px;text-align:center;transition:background .3s">
+          <div style="font-size:16px;margin-bottom:4px">${done?ic:'○'}</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${done?c:'var(--muted)'};line-height:1">${p}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:7px;color:var(--muted);margin-top:2px;letter-spacing:1px">${l.toUpperCase()}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:7px;color:var(--muted)">/${m}pts</div>
+        </div>`).join('')}
       </div>
-      ${S.effHistory.length>1?`
-      <div class="eff-history">
-        <div class="eff-hist-label">Last ${Math.min(14,S.effHistory.length)} days</div>
-        <div class="eff-chart">
-          ${[...S.effHistory].slice(-14).map(e=>`<div class="eff-bar-c" style="height:${Math.max(8,Math.round(e.score/100*100))}%;background:${effColor(e.score)};opacity:.7" title="${e.date}: ${e.score}/100"></div>`).join('')}
+      ${S.effHistory.length>2?`
+      <div style="padding:10px 14px;border-top:1px solid var(--border)">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Last ${Math.min(14,S.effHistory.length)} days</div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:32px">
+          ${[...S.effHistory].slice(-14).map(e=>`<div style="flex:1;border-radius:2px 2px 0 0;min-height:2px;height:${Math.max(4,Math.round(e.score/100*32))}px;background:${effColor(e.score)};opacity:.75;transition:height .4s" title="${e.date}: ${e.score}"></div>`).join('')}
         </div>
       </div>`:''}
     </div>
   </div>
 
-  <!-- Today's priority -->
-  <div class="section">
-    <div class="sec-lbl">Today's Priority</div>
-    <div class="card">
-      ${ci.priority
-        ?`<div class="row"><div style="font-size:18px">🎯</div><div style="flex:1"><div class="row-title">${ci.priority}</div>${ci.obstacle?`<div class="row-sub">⚡ Watch for: ${ci.obstacle}</div>`:''}</div><button class="btn btn-sm btn-ghost" onclick="show('checkin')">Edit</button></div>`
-        :`<div class="row"><div style="font-size:18px">💭</div><div style="flex:1"><div class="row-title" style="color:var(--muted)">Not set yet</div><div class="row-sub">Set your #1 priority to earn 35 efficiency points</div></div><button class="btn btn-sm" onclick="show('checkin')">Set Now</button></div>`
-      }
-    </div>
-  </div>
-
-  <!-- Quick stats -->
-  <div class="section">
-    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat"><div class="stat-val" style="color:${habitsDone>=6?'var(--green)':habitsDone>=4?'var(--gold)':'var(--muted)'}">${habitsDone}/${HABITS.length}</div><div class="stat-lbl">Habits</div></div>
-      <div class="stat"><div class="stat-val" style="color:${todayCal>0?todayCal>2400?'var(--red)':'var(--green)':'var(--muted)'}">${todayCal>0?todayCal:'—'}</div><div class="stat-lbl">Cal</div></div>
-      <div class="stat"><div class="stat-val" style="color:${lastSleep?lastSleep.hrs>=7?'var(--green)':lastSleep.hrs>=5?'var(--gold)':'var(--red)':'var(--muted)'}">${lastSleep?lastSleep.hrs+'h':'—'}</div><div class="stat-lbl">Sleep</div></div>
-      <div class="stat"><div class="stat-val" style="color:${scores.overall!==null?sc(scores.overall):'var(--muted)'}">${scores.overall!==null?scores.overall:'—'}</div><div class="stat-lbl">Score</div></div>
-    </div>
-  </div>
-
-  <!-- Today's recommendations -->
-  <div class="section">
-    <div class="sec-lbl">Today's Recommendations</div>
-    ${recCardHtml('meal','🍽️','Tonight\'s Meal','AI · Personalized')}
-    ${recCardHtml('exercise','💪','Exercise Plan','AI · Personalized')}
-    ${isWed||isThu?recCardHtml('house','🏠','House Task','AI · Personalized'):''}
-    ${recCardHtml('finance','💰','Financial Move','AI · Personalized')}
-  </div>
-
-  <!-- Quick habit log -->
+  <!-- QUICK HABIT LOG -->
   <div class="section">
     <div class="sec-lbl">Quick Log — Today</div>
     <div class="card">
       ${HABITS.map(h2=>{
         const k=`${wk}_${h2.id}_${dow}`;const v=S.habits[k]||0;
-        const bg=v===1?'rgba(0,204,122,.1)':v===2?'rgba(240,48,80,.07)':'';
-        const bc=v===1?'var(--green)':v===2?'var(--red)':'var(--border)';
-        return`<div class="row" style="background:${bg};border-left:3px solid ${bc}" onclick="quickLog('${k}')">
+        const done=v===1;const skip=v===2;
+        return`<div class="row" style="border-left:3px solid ${done?'var(--green)':skip?'var(--red)':'var(--border)'};background:${done?'rgba(0,204,122,.06)':skip?'rgba(240,48,80,.04)':''}" onclick="quickLog('${k}')">
           <div style="font-size:18px">${h2.ic}</div>
-          <div style="flex:1"><div class="row-title">${h2.name}</div><div class="row-sub">${h2.why.split('—')[0].trim()}</div></div>
-          <div style="font-family:'DM Mono',monospace;font-size:11px;color:${v===1?'var(--green)':v===2?'var(--red)':'var(--muted)'}">${v===1?'✓ DONE':v===2?'✗ SKIP':'tap'}</div>
+          <div style="flex:1">
+            <div class="row-title" style="${done?'color:var(--green)':skip?'color:var(--muted);text-decoration:line-through':''}">${h2.name}</div>
+            <div class="row-sub">${h2.why.split('—')[0].trim()}</div>
+          </div>
+          <div style="width:32px;height:32px;border-radius:8px;border:1.5px solid ${done?'var(--green)':skip?'var(--red)':'var(--border)'};background:${done?'var(--green)':skip?'rgba(240,48,80,.15)':'transparent'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s">${done?'✓':skip?'✗':''}</div>
         </div>`;
       }).join('')}
     </div>
   </div>
 
-  ${isWed?`<div class="alert ao" style="margin-top:12px"><b>Wednesday — Progress Day.</b> House block at 9 AM. Strength at 10:30. Side hustle at noon. Another house block at 2 PM. This day alone changes your financial situation in 3 months.</div>`:''}
-  ${isThu?`<div class="alert ag" style="margin-top:12px"><b>Thursday — Recovery Day.</b> No alarm. Outdoors. Meal prep for 3 days. One admin task max. Protect this evening — you work Friday.</div>`:''}
-  <div class="alert ao" style="margin-top:12px"><b>Tyler Union:</b> $1,154/mo waiting. 20 minutes. Do it before closing this app.</div>
+  <!-- NET WORTH BANNER -->
+  <div class="section">
+    <div style="background:linear-gradient(135deg,rgba(61,139,255,.1) 0%,rgba(0,204,122,.08) 100%);border:1px solid rgba(61,139,255,.2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px" onclick="show('networth')">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Net Worth</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:800;line-height:1;color:${nw>=0?'var(--green)':'var(--red)'}">${fmtMoney(nw)}</div>
+        <div style="font-size:11px;color:var(--soft);margin-top:3px">Positive at 23 — tap to update</div>
+      </div>
+      <div style="margin-left:auto;font-size:28px">💎</div>
+    </div>
+  </div>
+
+  <!-- AI RECOMMENDATIONS -->
+  <div class="section">
+    <div class="sec-lbl">Today's Recommendations</div>
+    ${recCardHtml('meal','🍽️','Tonight\'s Meal','AI')}
+    ${recCardHtml('exercise','💪','Exercise Plan','AI')}
+    ${isWed||isThu?recCardHtml('house','🏠','House Task','AI'):''}
+    ${recCardHtml('finance','💰','Financial Move','AI')}
+  </div>
+
+  <!-- ALERTS -->
+  <div class="section">
+    ${isWed?`<div class="alert ao"><b>Wednesday — Progress Day.</b> House block at 9 AM. Strength at 10:30. Side hustle noon. House block 2 at 2 PM. This day changes your financial situation.</div>`:''}
+    ${isThu?`<div class="alert ag"><b>Thursday — Recovery Day.</b> No alarm. Outdoors. Meal prep. One task. Protect this evening.</div>`:''}
+    <div style="background:linear-gradient(135deg,rgba(255,85,0,.08) 0%,rgba(255,85,0,.04) 100%);border:1px solid rgba(255,85,0,.2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+      <div style="font-size:20px">⚡</div>
+      <div style="flex:1;font-size:13px;line-height:1.6"><b style="color:var(--accent)">Tyler Union:</b> $1,154/mo waiting. 20 minutes. Highest ROI action you have right now.</div>
+    </div>
+  </div>
   `;
 
-  // Load recs after DOM is ready
   requestAnimationFrame(()=>{
     loadRec('meal','🍽️','Tonight\'s Meal','AI',null);
     loadRec('exercise','💪','Exercise Plan','AI',null);
@@ -2128,6 +2187,44 @@ function renderVision(){
 // ============================================================
 // RENDER: BACKUP
 // ============================================================
+function renderDataInfo(){
+  const scores=computeScores();
+  document.getElementById('content').innerHTML=`
+  <div style="padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">About This App</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Life Blueprint · Built March 2026</div>
+  </div>
+  <div class="card cp" style="margin-bottom:12px;border:1px solid rgba(255,85,0,.15)">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px">Your Data Summary</div>
+    ${[
+      ['Habit entries logged',Object.keys(S.habits).length,'var(--green)'],
+      ['Sleep nights logged',Object.keys(S.sleep).length,'var(--blue)'],
+      ['Daily check-ins',Object.keys(S.checkins).length,'var(--gold)'],
+      ['Calorie days logged',Object.keys(S.calories).length,'var(--teal)'],
+      ['Income entries',S.income.length,'var(--green)'],
+      ['Notes written',S.notes.length,'var(--purple)'],
+      ['Net worth snapshots',S.nwHistory.length,'var(--blue)'],
+      ['Credit score entries',S.creditScore.length,'var(--gold)'],
+      ['Monthly reviews',Object.keys(S.reviews).length,'var(--accent)'],
+    ].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--muted)">${l}</span>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${v>0?c:'var(--muted)'}">${v}</span>
+    </div>`).join('')}
+  </div>
+  <div class="card cp" style="margin-bottom:12px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">How Data Is Stored</div>
+    <div style="font-size:13px;color:var(--soft);line-height:1.8">
+      Everything you log saves instantly to <b style="color:var(--text)">localStorage</b> on this device.<br>
+      Within 2 seconds it syncs to <b style="color:var(--text)">Supabase</b> in the cloud.<br>
+      Your keys are stored only on this device — never in the app code or GitHub.<br>
+      Data persists indefinitely unless you clear Safari data.
+    </div>
+  </div>
+  <div class="alert ay">
+    <b>Monthly reminder:</b> Export a backup from Reflect → Backup → Download Backup. Save it somewhere safe. Takes 10 seconds.
+  </div>
+  `;
+}
 function renderBackup(){
   document.getElementById('content').innerHTML=`
   <div class="alert ag" style="padding-top:4px"><b>Export monthly.</b> Data lives in this browser. Clear browser data without a backup = data lost.</div>
@@ -2353,7 +2450,8 @@ const GROUPS={
   body:[{id:'habits',label:'Habits'},{id:'calories',label:'Calories'},{id:'sleep',label:'Sleep'},{id:'workouts',label:'Workouts'}],
   finance:[{id:'budget',label:'Budget'},{id:'credit',label:'Credit'},{id:'networth',label:'Net Worth'},{id:'retirement',label:'Retirement'},{id:'taxes',label:'Side $ Tax'},{id:'property',label:'Property'}],
   build:[{id:'house',label:'House'},{id:'income',label:'Income'},{id:'goals',label:'Goals'},{id:'weekly',label:'Weekly Plan'},{id:'plan',label:'Action Plan'}],
-  reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'},{id:'notif',label:'Notifications'},{id:'settings',label:'Setup'}],
+  reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'}],
+  settings:[{id:'settings',label:'Setup'},{id:'notif',label:'Notifications'},{id:'data-info',label:'About'}],
 };
 
 let curGroup='today';let curTab='dashboard';
@@ -2376,7 +2474,7 @@ function show(tabId){
     habits:renderHabits,calories:renderCalories,sleep:renderSleep,workouts:renderWorkouts,
     budget:renderBudget,credit:renderCredit,networth:renderNetWorth,retirement:renderRetirement,taxes:renderTaxes,property:renderProperty,
     house:renderHouse,income:renderIncome,goals:renderGoals,weekly:renderWeekly,plan:renderPlan,
-    review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,settings:renderSettings,
+    review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,settings:renderSettings,'data-info':renderDataInfo,
   };
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
@@ -2422,14 +2520,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
   try{
     await initSW();
     const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
-    navGroup('today');
-    if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
+    // Load keys first so AI works immediately
     const savedAK=localStorage.getItem('bp_user_anthropic_key');
     const savedSU=localStorage.getItem('bp_user_supabase_url');
     const savedSK=localStorage.getItem('bp_user_supabase_key');
     if(savedAK)CFG.ANTHROPIC_KEY=savedAK;
     if(savedSU)CFG.SUPABASE_URL=savedSU;
     if(savedSK)CFG.SUPABASE_KEY=savedSK;
+    // Show dashboard immediately — don't wait for anything
+    navGroup('today');
+    show('dashboard');
+    if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
