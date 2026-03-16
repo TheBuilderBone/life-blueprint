@@ -757,10 +757,17 @@ function creditLabel(s){if(s>=800)return'Exceptional';if(s>=740)return'Very Good
 // ============================================================
 function computeScores(){
   const wk=getWk(0);
-  // Count days elapsed this week so score is fair early in the week
+  // Days elapsed this week — week starts Monday
+  // Use logged days as the denominator instead of calendar days
+  // This way score reflects actual logged data not calendar position
   const today=new Date();const todayIdx=today.getDay()===0?6:today.getDay()-1;
-  const daysElapsed=todayIdx+1;// 1 on Monday, 7 on Sunday
-  const totalPossible=HABITS.length*daysElapsed;
+  // Count unique days that have any habit logged this week
+  const daysWithActivity=new Set();
+  HABITS.forEach(h=>DAYS.forEach((_,di)=>{
+    if(S.habits[`${wk}_${h.id}_${di}`])daysWithActivity.add(di);
+  }));
+  const activeDays=Math.max(1,daysWithActivity.size);
+  const totalPossible=HABITS.length*activeDays;
   let hDone=0,hLogged=0,hSkipped=0;
   HABITS.forEach(h=>DAYS.forEach((_,di)=>{
     if(di>todayIdx)return;// Don't count future days
