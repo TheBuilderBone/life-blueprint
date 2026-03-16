@@ -2407,7 +2407,10 @@ function saveAnthropicKey(){
   if(!key){showToast('Enter your key first','var(--red)');return;}
   if(!key.startsWith('sk-ant')){showToast('Key should start with sk-ant','var(--red)');return;}
   localStorage.setItem('bp_user_anthropic_key',key);
+  sessionStorage.setItem('bp_key_ak',key);
   CFG.ANTHROPIC_KEY=key;
+  // Clear rec cache so new recs load with the key
+  S.recCache={};sv('recCache',{});
   showToast('✓ AI key saved','var(--green)');
   renderSettings();
 }
@@ -2428,6 +2431,8 @@ function saveSupabaseKeys(){
   if(!key.startsWith('eyJ')){showToast('Key should start with eyJ','var(--red)');return;}
   localStorage.setItem('bp_user_supabase_url',url);
   localStorage.setItem('bp_user_supabase_key',key);
+  sessionStorage.setItem('bp_key_su',url);
+  sessionStorage.setItem('bp_key_sk',key);
   CFG.SUPABASE_URL=url;
   CFG.SUPABASE_KEY=key;
   showToast('✓ Sync keys saved','var(--green)');
@@ -2619,31 +2624,45 @@ async function initNotifications(){
 }
 
 // ============================================================
+// KEY MANAGEMENT — multiple storage layers for reliability
+// ============================================================
+function loadKeys(){
+  // Try localStorage first, then sessionStorage as backup
+  const ak=localStorage.getItem('bp_user_anthropic_key')||sessionStorage.getItem('bp_key_ak');
+  const su=localStorage.getItem('bp_user_supabase_url')||sessionStorage.getItem('bp_key_su');
+  const sk=localStorage.getItem('bp_user_supabase_key')||sessionStorage.getItem('bp_key_sk');
+  if(ak){CFG.ANTHROPIC_KEY=ak;sessionStorage.setItem('bp_key_ak',ak);}
+  if(su){CFG.SUPABASE_URL=su;sessionStorage.setItem('bp_key_su',su);}
+  if(sk){CFG.SUPABASE_KEY=sk;sessionStorage.setItem('bp_key_sk',sk);}
+  return{hasAI:ak&&ak.startsWith('sk-ant'),hasSync:su&&sk};
+}
+
+// ============================================================
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded',async()=>{
   try{
     await initSW();
     const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
-    // Load keys first so AI works immediately
-    const savedAK=localStorage.getItem('bp_user_anthropic_key');
-    const savedSU=localStorage.getItem('bp_user_supabase_url');
-    const savedSK=localStorage.getItem('bp_user_supabase_key');
-    if(savedAK)CFG.ANTHROPIC_KEY=savedAK;
-    if(savedSU)CFG.SUPABASE_URL=savedSU;
-    if(savedSK)CFG.SUPABASE_KEY=savedSK;
-    // Show dashboard immediately — don't wait for anything
+    // Load keys FIRST before anything else renders
+    const keys=loadKeys();
+    // Show dashboard immediately
     navGroup('today');
     show('dashboard');
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
+    // Show setup prompt if keys missing
+    if(!keys.hasAI){
+      setTimeout(()=>{
+        showToast('⚙ Go to Settings → Setup to enable AI','var(--gold)');
+      },2000);
+    }
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
   }catch(err){
     console.error('Init error:',err);
-    // Recovery — try to render dashboard even if something failed
-    try{navGroup('today');updateTopbar();}catch(e){}
+    try{navGroup('today');show('dashboard');updateTopbar();}catch(e){}
   }
 });
 </script>
