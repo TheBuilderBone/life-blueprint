@@ -560,6 +560,19 @@ const CFG = {
   USER_ID: 'user_1',
 };
 
+// Load saved keys IMMEDIATELY — before any function runs
+// This runs synchronously so CFG has real values before anything reads it
+(function loadSavedKeys(){
+  try{
+    const ak=localStorage.getItem('bp_user_anthropic_key')||sessionStorage.getItem('bp_key_ak');
+    const su=localStorage.getItem('bp_user_supabase_url')||sessionStorage.getItem('bp_key_su');
+    const sk=localStorage.getItem('bp_user_supabase_key')||sessionStorage.getItem('bp_key_sk');
+    if(ak&&ak.startsWith('sk-ant')){CFG.ANTHROPIC_KEY=ak;}
+    if(su&&su.includes('supabase.co')){CFG.SUPABASE_URL=su;}
+    if(sk&&sk.startsWith('eyJ')){CFG.SUPABASE_KEY=sk;}
+  }catch(e){console.log('Key load error:',e);}
+})();
+
 // ============================================================
 // STORAGE + CLOUD SYNC
 // ============================================================
