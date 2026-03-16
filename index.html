@@ -757,9 +757,21 @@ function creditLabel(s){if(s>=800)return'Exceptional';if(s>=740)return'Very Good
 // ============================================================
 function computeScores(){
   const wk=getWk(0);
-  let hDone=0,hLogged=0;
-  HABITS.forEach(h=>DAYS.forEach((_,di)=>{const v=S.habits[`${wk}_${h.id}_${di}`];if(v===1){hDone++;hLogged++;}else if(v===2)hLogged++;}));
-  const habitScore=hLogged===0?null:Math.round((hDone/hLogged)*100);
+  // Count days elapsed this week so score is fair early in the week
+  const today=new Date();const todayIdx=today.getDay()===0?6:today.getDay()-1;
+  const daysElapsed=todayIdx+1;// 1 on Monday, 7 on Sunday
+  const totalPossible=HABITS.length*daysElapsed;
+  let hDone=0,hLogged=0,hSkipped=0;
+  HABITS.forEach(h=>DAYS.forEach((_,di)=>{
+    if(di>todayIdx)return;// Don't count future days
+    const v=S.habits[`${wk}_${h.id}_${di}`];
+    if(v===1){hDone++;hLogged++;}
+    else if(v===2){hSkipped++;hLogged++;}
+  }));
+  // Score = done / total possible days elapsed (not just logged)
+  // Unlogged days count as unknown, not as failures
+  // But if nothing logged at all return null
+  const habitScore=hLogged===0?null:Math.round((hDone/totalPossible)*100);
   const sleepE=DAYS.map((_,di)=>S.sleep[`${wk}_${di}`]).filter(Boolean);
   let sleepScore=null;
   if(sleepE.length>0){const avg=sleepE.reduce((a,e)=>a+e.hrs,0)/sleepE.length;const dn=sleepE.filter(e=>e.drinks>0).length;sleepScore=Math.min(100,Math.round((Math.min(avg,8)/8)*60+((sleepE.length-dn)/sleepE.length)*40));}
@@ -778,7 +790,7 @@ function computeScores(){
   const scored=[habitScore,sleepScore,houseScore,savingsScore,planScore].filter(v=>v!==null);
   const overall=scored.length===0?null:Math.round(scored.reduce((a,v)=>a+v,0)/scored.length);
   const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);
-  return{overall,habitScore,sleepScore,houseScore,savingsScore,planScore,hDone,hLogged,hsDone,hsTotal,pDone,pTotal,sleepE,todayCal,totalIncome,bestStreak,nw};
+  return{overall,habitScore,sleepScore,houseScore,savingsScore,planScore,hDone,hLogged,hSkipped,hsDone,hsTotal,pDone,pTotal,sleepE,todayCal,totalIncome,bestStreak,nw,totalPossible};
 }
 
 function calcStreak(id){let s=0;for(let w=0;w>=-12;w--){const wk=getWk(w);for(let d=6;d>=0;d--){const v=S.habits[`${wk}_${id}_${d}`];if(v===1)s++;else if(v===2)return s;}}return s;}
@@ -2302,7 +2314,7 @@ USER PROFILE:
 CURRENT DATA:
 - Life score: ${scores.overall!==null?scores.overall+'/100':'no data'}
 - Today's efficiency: ${eff.total}/100 (priority:${eff.priority.done?'✓':'○'} schedule:${eff.schedule.done?'✓':'○'} calories:${eff.calories.done?'✓':'○'} exercise:${eff.exercise.done?'✓':'○'})
-- Habits this week: ${scores.habitScore!==null?scores.habitScore+'%':'not logged'} (${scores.hDone}/${scores.hLogged} days)
+- Habits this week: ${scores.habitScore!==null?scores.habitScore+'%':'not logged'} (${scores.hDone} done of ${scores.totalPossible} possible)
 - Sleep score: ${scores.sleepScore!==null?scores.sleepScore+'/100':'not logged'}
 - House: ${scores.hsDone}/${scores.hsTotal} tasks (${scores.houseScore||0}%)
 - Budget: $${tIn} in, $${tOut} out, ${tIn-tOut>=0?'+':''}$${tIn-tOut} surplus
