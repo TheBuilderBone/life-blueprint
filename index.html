@@ -2397,20 +2397,26 @@ async function initNotifications(){
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded',async()=>{
-  await initSW();
-  const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
-  navGroup('today');
-  if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
-  const savedAK=localStorage.getItem('bp_user_anthropic_key');
-  const savedSU=localStorage.getItem('bp_user_supabase_url');
-  const savedSK=localStorage.getItem('bp_user_supabase_key');
-  if(savedAK)CFG.ANTHROPIC_KEY=savedAK;
-  if(savedSU)CFG.SUPABASE_URL=savedSU;
-  if(savedSK)CFG.SUPABASE_KEY=savedSK;
-  updateTopbar();saveEffHistory();
-  setTimeout(()=>cloudSync(),2000);
-  setTimeout(()=>initNotifications(),3000);
-  setTimeout(()=>runMorningRecs(),4000);
+  try{
+    await initSW();
+    const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
+    navGroup('today');
+    if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
+    const savedAK=localStorage.getItem('bp_user_anthropic_key');
+    const savedSU=localStorage.getItem('bp_user_supabase_url');
+    const savedSK=localStorage.getItem('bp_user_supabase_key');
+    if(savedAK)CFG.ANTHROPIC_KEY=savedAK;
+    if(savedSU)CFG.SUPABASE_URL=savedSU;
+    if(savedSK)CFG.SUPABASE_KEY=savedSK;
+    updateTopbar();saveEffHistory();
+    setTimeout(()=>cloudSync(),2000);
+    setTimeout(()=>initNotifications(),3000);
+    setTimeout(()=>runMorningRecs(),4000);
+  }catch(err){
+    console.error('Init error:',err);
+    // Recovery — try to render dashboard even if something failed
+    try{navGroup('today');updateTopbar();}catch(e){}
+  }
 });
 </script>
 </body>
