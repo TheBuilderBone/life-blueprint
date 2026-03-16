@@ -552,9 +552,9 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
 // CONFIG — paste your values here
 // ============================================================
 const CFG = {
-  SUPABASE_URL: 'xxxxxxxx',
-  SUPABASE_KEY: 'xxxxxxxxxx',
-  ANTHROPIC_KEY: 'xxxxxxxxx',
+  SUPABASE_URL: 'PASTE_YOUR_SUPABASE_URL_HERE',
+  SUPABASE_KEY: 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE',
+  ANTHROPIC_KEY: 'PASTE_YOUR_ANTHROPIC_KEY_HERE',
   USER_ID: 'user_1',
 };
 
@@ -2129,6 +2129,88 @@ function renderBackup(){
   </div>
   `;
 }
+function renderSettings(){
+  const savedAK=localStorage.getItem('bp_user_anthropic_key')||'';
+  const savedSU=localStorage.getItem('bp_user_supabase_url')||CFG.SUPABASE_URL||'';
+  const savedSK=localStorage.getItem('bp_user_supabase_key')||CFG.SUPABASE_KEY||'';
+  const hasAK=savedAK.startsWith('sk-ant');
+  const hasSU=savedSU.includes('supabase.co');
+  const hasSK=savedSK.startsWith('eyJ');
+  document.getElementById('content').innerHTML=`
+  <div style="padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">App Setup</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Enter your API keys once — saved on this device only, never uploaded anywhere</div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="row">
+      <div style="font-size:18px">${hasAK?'✅':'❌'}</div>
+      <div style="flex:1"><div class="row-title">AI Recommendations</div><div class="row-sub">${hasAK?'Anthropic key saved — recommendations active':'No key yet — enter below to enable'}</div></div>
+    </div>
+    <div class="row">
+      <div style="font-size:18px">${hasSU&&hasSK?'✅':'❌'}</div>
+      <div style="flex:1"><div class="row-title">Cloud Sync</div><div class="row-sub">${hasSU&&hasSK?'Supabase connected — syncing across devices':'Not configured — enter below'}</div></div>
+    </div>
+  </div>
+  <div class="sec-lbl">AI Advisor Key (Anthropic)</div>
+  <div class="card cp" style="margin-bottom:14px">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">Get your key at <b style="color:var(--text)">console.anthropic.com</b> → API Keys → Create Key. Costs ~$0.01 per conversation.</div>
+    <div class="fl"><div class="fl-lbl">Anthropic API Key</div>
+      <input type="password" id="set-anthropic" placeholder="sk-ant-api03-..." value="${savedAK}" style="font-family:'DM Mono',monospace;font-size:12px">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-full" onclick="saveAnthropicKey()">Save AI Key</button>
+      ${hasAK?`<button class="btn btn-ghost" onclick="clearAnthropicKey()">Clear</button>`:''}
+    </div>
+    ${hasAK?`<div class="ag" style="margin-top:10px;margin-bottom:0"><b>Key saved.</b> AI recommendations and advisor are active on this device.</div>`:''}
+  </div>
+  <div class="sec-lbl">Cloud Sync (Supabase)</div>
+  <div class="card cp" style="margin-bottom:14px">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">Get these at <b style="color:var(--text)">supabase.com/dashboard</b> → your project → Settings → API.</div>
+    <div class="fl"><div class="fl-lbl">Supabase Project URL</div>
+      <input type="text" id="set-supabase-url" placeholder="https://xxxx.supabase.co" value="${savedSU}">
+    </div>
+    <div class="fl"><div class="fl-lbl">Supabase Anon / Public Key</div>
+      <input type="password" id="set-supabase-key" placeholder="eyJ..." value="${savedSK}" style="font-family:'DM Mono',monospace;font-size:12px">
+    </div>
+    <button class="btn btn-full" onclick="saveSupabaseKeys()">Save Sync Keys</button>
+    ${hasSU&&hasSK?`<div class="ag" style="margin-top:10px;margin-bottom:0"><b>Sync keys saved.</b> Data syncing across devices.</div>`:''}
+  </div>
+  <div class="alert ay"><b>These keys are stored only on this device.</b> They never get uploaded to GitHub. You need to enter them once on each device — phone and computer separately.</div>
+  `;
+}
+
+function saveAnthropicKey(){
+  const key=document.getElementById('set-anthropic').value.trim();
+  if(!key){showToast('Enter your key first','var(--red)');return;}
+  if(!key.startsWith('sk-ant')){showToast('Key should start with sk-ant','var(--red)');return;}
+  localStorage.setItem('bp_user_anthropic_key',key);
+  CFG.ANTHROPIC_KEY=key;
+  showToast('✓ AI key saved','var(--green)');
+  renderSettings();
+}
+
+function clearAnthropicKey(){
+  if(!confirm('Remove the saved AI key from this device?'))return;
+  localStorage.removeItem('bp_user_anthropic_key');
+  CFG.ANTHROPIC_KEY='PASTE_YOUR_ANTHROPIC_KEY_HERE';
+  showToast('Key cleared','var(--gold)');
+  renderSettings();
+}
+
+function saveSupabaseKeys(){
+  const url=document.getElementById('set-supabase-url').value.trim();
+  const key=document.getElementById('set-supabase-key').value.trim();
+  if(!url||!key){showToast('Enter both fields','var(--red)');return;}
+  if(!url.includes('supabase.co')){showToast('URL should end in supabase.co','var(--red)');return;}
+  if(!key.startsWith('eyJ')){showToast('Key should start with eyJ','var(--red)');return;}
+  localStorage.setItem('bp_user_supabase_url',url);
+  localStorage.setItem('bp_user_supabase_key',key);
+  CFG.SUPABASE_URL=url;
+  CFG.SUPABASE_KEY=key;
+  showToast('✓ Sync keys saved','var(--green)');
+  renderSettings();
+}
+
 function renderNotif(){
   const perm=Notification.permission;
   const permColor=perm==="granted"?"var(--green)":perm==="denied"?"var(--red)":"var(--gold)";
@@ -2249,7 +2331,7 @@ const GROUPS={
   body:[{id:'habits',label:'Habits'},{id:'calories',label:'Calories'},{id:'sleep',label:'Sleep'},{id:'workouts',label:'Workouts'}],
   finance:[{id:'budget',label:'Budget'},{id:'credit',label:'Credit'},{id:'networth',label:'Net Worth'},{id:'retirement',label:'Retirement'},{id:'taxes',label:'Side $ Tax'},{id:'property',label:'Property'}],
   build:[{id:'house',label:'House'},{id:'income',label:'Income'},{id:'goals',label:'Goals'},{id:'weekly',label:'Weekly Plan'},{id:'plan',label:'Action Plan'}],
-  reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'},{id:'notif',label:'Notifications'}],
+  reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'},{id:'notif',label:'Notifications'},{id:'settings',label:'Setup'}],
 };
 
 let curGroup='today';let curTab='dashboard';
@@ -2272,7 +2354,7 @@ function show(tabId){
     habits:renderHabits,calories:renderCalories,sleep:renderSleep,workouts:renderWorkouts,
     budget:renderBudget,credit:renderCredit,networth:renderNetWorth,retirement:renderRetirement,taxes:renderTaxes,property:renderProperty,
     house:renderHouse,income:renderIncome,goals:renderGoals,weekly:renderWeekly,plan:renderPlan,
-    review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,
+    review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,settings:renderSettings,
   };
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
@@ -2318,6 +2400,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
   const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
   navGroup('today');
   if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
+  const savedAK=localStorage.getItem('bp_user_anthropic_key');
+  const savedSU=localStorage.getItem('bp_user_supabase_url');
+  const savedSK=localStorage.getItem('bp_user_supabase_key');
+  if(savedAK)CFG.ANTHROPIC_KEY=savedAK;
+  if(savedSU)CFG.SUPABASE_URL=savedSU;
+  if(savedSK)CFG.SUPABASE_KEY=savedSK;
   updateTopbar();saveEffHistory();
   setTimeout(()=>cloudSync(),2000);
   setTimeout(()=>initNotifications(),3000);
