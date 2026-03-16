@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Blueprint">
+<meta name="theme-color" content="#060610">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Life Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Industrial utilitarian — built for one-handed use at 6 AM
+   ============================================================ */
+:root {
+  --bg:#060610; --surface:#0d0d1a; --card:#111120;
+  --border:#1a1a2e; --dim:#1f1f35; --lift:#252540;
+  --accent:#ff5500; --gold:#f0a000; --green:#00cc7a;
+  --red:#f03050; --blue:#3d8bff; --purple:#8b5cf6;
+  --teal:#06c8d8; --pink:#f050a0;
+  --text:#eeeaf8; --soft:#9997b0; --muted:#55536a;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,20px);
+  --touch:48px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{height:100%;overflow:hidden;scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Barlow',sans-serif;font-size:15px;line-height:1.5;
+  height:100%;overflow:hidden;display:flex;flex-direction:column;
+  padding-top:var(--safe-top);
+}
+::-webkit-scrollbar{width:2px;height:2px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:1px;}
+
+/* ============================================================ SHELL */
+.shell{display:flex;flex-direction:column;height:100%;overflow:hidden;max-width:600px;margin:0 auto;width:100%;}
+
+/* TOP BAR */
+.topbar{
+  flex-shrink:0;height:52px;
+  background:rgba(6,6,16,.96);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;gap:12px;
+  position:relative;z-index:100;
+}
+.topbar-logo{
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;
+  font-size:18px;color:var(--accent);letter-spacing:2px;
+  text-transform:uppercase;flex-shrink:0;
+}
+.topbar-center{
+  flex:1;text-align:center;
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);
+}
+.topbar-center b{color:var(--gold);}
+.topbar-ai{
+  width:38px;height:38px;border-radius:9px;
+  background:var(--dim);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;cursor:pointer;transition:all .15s;flex-shrink:0;
+}
+.topbar-ai:active{background:var(--accent);border-color:var(--accent);}
+
+/* EFFICIENCY SCORE BADGE */
+.eff-badge{
+  display:flex;align-items:center;gap:6px;
+  background:var(--dim);border:1px solid var(--border);
+  border-radius:20px;padding:4px 10px;cursor:pointer;
+  transition:all .15s;
+}
+.eff-badge:active{border-color:var(--accent);}
+.eff-num{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;line-height:1;}
+.eff-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+
+/* SUB NAV */
+.sub-nav{
+  display:none;background:var(--surface);
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;scrollbar-width:none;flex-shrink:0;
+}
+.sub-nav::-webkit-scrollbar{display:none;}
+.sub-nav.open{display:flex;}
+.sub-btn{
+  font-family:'DM Mono',monospace;font-size:10px;
+  letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+  padding:0 14px;white-space:nowrap;cursor:pointer;
+  border:none;background:transparent;border-bottom:2px solid transparent;
+  transition:all .15s;min-height:40px;display:flex;align-items:center;
+}
+.sub-btn.active,.sub-btn:active{color:var(--text);border-bottom-color:var(--teal);}
+
+/* MAIN CONTENT */
+.main{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  padding-bottom:calc(68px + var(--safe-bottom));
+}
+
+/* BOTTOM NAV */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  z-index:100;width:100%;max-width:600px;
+  background:rgba(6,6,16,.96);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;padding-bottom:var(--safe-bottom);
+}
+.nav-btn{
+  flex:1;min-height:var(--touch);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;cursor:pointer;transition:all .15s;
+  border:none;background:transparent;padding:8px 2px;position:relative;
+}
+.nav-btn .ni{font-size:20px;line-height:1;}
+.nav-btn .nl{
+  font-family:'DM Mono',monospace;font-size:8px;
+  letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+}
+.nav-btn.active .nl{color:var(--accent);}
+.nav-btn.active::before{
+  content:'';position:absolute;top:0;left:25%;right:25%;
+  height:2px;background:var(--accent);border-radius:0 0 2px 2px;
+}
+
+/* ============================================================ LAYOUT */
+.wrap{padding:12px 16px 0;max-width:600px;margin:0 auto;}
+.section{margin-top:20px;}
+.section:first-child{margin-top:0;}
+
+.sec-lbl{
+  font-family:'DM Mono',monospace;font-size:9px;
+  letter-spacing:3px;text-transform:uppercase;color:var(--accent);
+  margin-bottom:8px;display:flex;align-items:center;gap:8px;
+}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.cp{padding:14px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+/* ALERTS */
+.ao{background:rgba(255,85,0,.07);border:1px solid rgba(255,85,0,.2);border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:10px;}
+.ao b{color:var(--accent);}
+.ag{background:rgba(0,204,122,.07);border:1px solid rgba(0,204,122,.2);border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:10px;}
+.ag b{color:var(--green);}
+.ar{background:rgba(240,48,80,.07);border:1px solid rgba(240,48,80,.2);border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:10px;}
+.ar b{color:var(--red);}
+.ab{background:rgba(61,139,255,.07);border:1px solid rgba(61,139,255,.2);border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:10px;}
+.ab b{color:var(--blue);}
+.ay{background:rgba(240,160,0,.07);border:1px solid rgba(240,160,0,.2);border-radius:10px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:10px;}
+.ay b{color:var(--gold);}
+
+/* ============================================================ RECOMMENDATION CARD */
+.rec-card{
+  background:linear-gradient(135deg,rgba(255,85,0,.08) 0%,rgba(61,139,255,.05) 100%);
+  border:1px solid rgba(255,85,0,.25);
+  border-radius:12px;overflow:hidden;margin-bottom:12px;
+}
+.rec-header{
+  padding:12px 14px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,85,0,.15);
+}
+.rec-icon{font-size:20px;flex-shrink:0;}
+.rec-title{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:800;text-transform:uppercase;flex:1;}
+.rec-tag{font-family:'DM Mono',monospace;font-size:8px;padding:2px 8px;border-radius:10px;background:var(--accent);color:#fff;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.rec-body{padding:12px 14px;}
+.rec-action{font-size:14px;font-weight:600;margin-bottom:8px;line-height:1.5;}
+.rec-steps{margin-bottom:10px;}
+.rec-step{display:flex;gap:8px;font-size:12px;margin-bottom:5px;align-items:flex-start;}
+.rec-step-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);font-weight:500;min-width:16px;margin-top:1px;}
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.rec-stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 10px;}
+.rec-stat-val{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;line-height:1;}
+.rec-stat-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+.rec-alt{
+  margin-top:10px;padding:9px 12px;
+  background:rgba(6,200,216,.07);border:1px solid rgba(6,200,216,.2);
+  border-radius:8px;font-size:12px;line-height:1.6;
+}
+.rec-alt b{color:var(--teal);}
+.rec-cost{
+  margin-top:8px;padding:9px 12px;
+  background:rgba(240,48,80,.06);border:1px solid rgba(240,48,80,.18);
+  border-radius:8px;font-size:12px;line-height:1.6;
+}
+.rec-cost b{color:var(--red);}
+.rec-loading{
+  padding:16px 14px;display:flex;align-items:center;gap:10px;
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);
+}
+.rec-actions{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.rec-expand-btn{
+  flex:1;height:36px;background:transparent;border:1px solid var(--border);
+  border-radius:7px;font-family:'DM Mono',monospace;font-size:10px;
+  letter-spacing:1px;text-transform:uppercase;color:var(--soft);cursor:pointer;
+  transition:all .15s;
+}
+.rec-expand-btn:active{border-color:var(--accent);color:var(--text);}
+
+/* ============================================================ EFFICIENCY SCORE */
+.eff-panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;margin-bottom:12px;
+}
+.eff-top{padding:14px;display:flex;align-items:center;gap:14px;}
+.eff-ring{position:relative;flex-shrink:0;}
+.eff-ring svg{display:block;}
+.eff-ring-center{
+  position:absolute;inset:0;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+}
+.eff-score-num{font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;line-height:1;}
+.eff-score-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:1px;}
+.eff-info{flex:1;}
+.eff-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase;margin-bottom:4px;}
+.eff-desc{font-size:12px;color:var(--soft);line-height:1.5;margin-bottom:8px;}
+.eff-bars{display:flex;flex-direction:column;gap:4px;}
+.eff-bar-row{display:flex;align-items:center;gap:7px;}
+.eff-bar-lbl{font-size:11px;color:var(--muted);min-width:58px;}
+.eff-bar-track{flex:1;height:4px;background:var(--dim);border-radius:2px;overflow:hidden;}
+.eff-bar-fill{height:100%;border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+.eff-bar-pts{font-family:'DM Mono',monospace;font-size:9px;min-width:30px;text-align:right;}
+.eff-history{padding:10px 14px;border-top:1px solid var(--border);}
+.eff-hist-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.eff-chart{display:flex;align-items:flex-end;gap:4px;height:36px;}
+.eff-bar-c{flex:1;border-radius:2px 2px 0 0;min-height:2px;transition:height .4s;}
+
+/* ============================================================ FORMS */
+input[type=text],input[type=number],input[type=email],
+textarea,select{
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:8px;color:var(--text);font-family:'Barlow',sans-serif;
+  font-size:15px;padding:11px 13px;width:100%;
+  transition:border .2s;outline:none;min-height:var(--touch);
+  -webkit-appearance:none;appearance:none;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:80px;line-height:1.6;}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:var(--touch);}
+.fl{display:flex;flex-direction:column;gap:5px;margin-bottom:11px;}
+.fl-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+
+/* BUTTONS */
+.btn{
+  background:var(--accent);border:none;color:#fff;
+  padding:0 18px;height:var(--touch);border-radius:8px;
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;
+  font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;transition:all .15s;display:inline-flex;
+  align-items:center;justify-content:center;gap:6px;
+  white-space:nowrap;-webkit-appearance:none;
+}
+.btn:active{transform:scale(.96);filter:brightness(.88);}
+.btn-sm{height:38px;padding:0 14px;font-size:13px;border-radius:7px;}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--soft);}
+.btn-ghost:active{border-color:var(--accent);color:var(--text);}
+.btn-green{background:var(--green);color:#000;}
+.btn-blue{background:var(--blue);}
+.btn-full{width:100%;}
+.btn-teal{background:var(--teal);color:#000;}
+
+/* CHECKBOXES */
+.chk{
+  width:22px;height:22px;border:1.5px solid var(--border);
+  border-radius:5px;flex-shrink:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;transition:all .15s;min-width:22px;
+}
+.chk:active{transform:scale(.88);}
+.chk.done{background:var(--green);border-color:var(--green);color:#000;}
+.chk.skip{background:rgba(240,48,80,.15);border-color:var(--red);color:var(--red);}
+
+/* ============================================================ LIST ROWS */
+.row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  min-height:var(--touch);
+}
+.row:last-child{border-bottom:none;}
+.row-title{font-size:14px;font-weight:500;flex:1;line-height:1.4;}
+.row-sub{font-size:11px;color:var(--muted);margin-top:1px;line-height:1.3;}
+.row-val{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;flex-shrink:0;}
+
+/* ============================================================ STATS */
+.stat-grid{
+  display:grid;gap:1px;background:var(--border);
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;
+}
+.stat{background:var(--card);padding:12px 10px;}
+.stat-val{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;line-height:1;}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+
+/* ============================================================ PROGRESS */
+.prog{height:5px;background:var(--dim);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+
+/* ============================================================ HABITS */
+.habit-row{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border-bottom:1px solid var(--border);
+}
+.habit-row:last-child{border-bottom:none;}
+.h-ic{font-size:19px;flex-shrink:0;}
+.h-name{font-size:14px;font-weight:500;}
+.h-why{font-size:10px;color:var(--teal);font-style:italic;margin-top:1px;}
+.h-days{display:flex;gap:4px;flex-shrink:0;}
+.hday{
+  width:27px;height:27px;border-radius:6px;
+  border:1.5px solid var(--border);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;transition:all .1s;user-select:none;flex-shrink:0;
+}
+.hday:active{transform:scale(.82);}
+.hday.done{background:var(--green);border-color:var(--green);color:#000;}
+.hday.skip{background:rgba(240,48,80,.15);border-color:var(--red);color:var(--red);}
+.streak{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;min-width:46px;text-align:right;white-space:nowrap;}
+
+/* ============================================================ SLEEP */
+.sleep-cell{
+  background:var(--card);border:1.5px solid var(--border);
+  border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:all .15s;
+}
+.sleep-cell:active{transform:scale(.94);}
+
+/* ============================================================ CREDIT */
+.credit-factor{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);}
+.credit-factor:last-child{border-bottom:none;}
+
+/* ============================================================ MOOD */
+.mood-row{display:flex;gap:7px;}
+.mood-btn{
+  flex:1;height:var(--touch);border-radius:8px;
+  border:1.5px solid var(--border);background:transparent;
+  font-size:20px;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.mood-btn:active{transform:scale(.9);}
+.mood-btn.sel{border-color:var(--accent);background:rgba(255,85,0,.12);}
+
+/* ============================================================ MODALS */
+.overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.82);z-index:500;
+  align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex;}
+.sheet{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px 20px 0 0;padding:18px 18px calc(18px + var(--safe-bottom));
+  width:100%;max-width:600px;max-height:88vh;overflow-y:auto;
+  animation:slideUp .22s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.sheet-handle{width:38px;height:4px;background:var(--dim);border-radius:2px;margin:0 auto 14px;}
+.sheet-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;text-transform:uppercase;margin-bottom:14px;}
+
+/* ============================================================ AI ADVISOR */
+.advisor-wrap{
+  display:none;position:fixed;inset:0;
+  background:var(--bg);z-index:600;
+  flex-direction:column;padding-top:var(--safe-top);
+}
+.advisor-wrap.open{display:flex;}
+.advisor-header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.advisor-title{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase;flex:1;}
+.advisor-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;}
+.advisor-close{
+  width:36px;height:36px;background:var(--dim);border:none;
+  border-radius:8px;color:var(--soft);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.advisor-msgs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:flex;flex-direction:column;gap:10px;}
+.msg{max-width:86%;padding:11px 13px;border-radius:14px;font-size:14px;line-height:1.6;}
+.msg.ai{background:var(--card);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px;}
+.msg.user{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}
+.msg.typing{background:var(--card);border:1px solid var(--border);align-self:flex-start;}
+.advisor-input-row{
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:10px 14px calc(10px + var(--safe-bottom));
+  display:flex;gap:9px;align-items:flex-end;flex-shrink:0;
+}
+.advisor-input{
+  flex:1;background:var(--card);border:1.5px solid var(--border);
+  border-radius:10px;color:var(--text);font-family:'Barlow',sans-serif;
+  font-size:15px;padding:10px 13px;outline:none;resize:none;
+  max-height:110px;min-height:var(--touch);line-height:1.4;
+}
+.advisor-input:focus{border-color:var(--accent);}
+.advisor-send{
+  width:var(--touch);height:var(--touch);background:var(--accent);
+  border:none;border-radius:10px;color:#fff;font-size:19px;
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+}
+
+/* ============================================================ SCHEDULE */
+.sched-item{display:grid;grid-template-columns:56px 3px 1fr;gap:0 9px;align-items:start;padding:2px 0;}
+.sched-time{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-align:right;padding-top:3px;}
+.sched-line{display:flex;flex-direction:column;align-items:center;}
+.sched-dot{width:6px;height:6px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.sched-connector{width:1px;flex:1;background:var(--border);min-height:14px;margin-top:2px;}
+.sched-content{padding-bottom:9px;}
+.sched-label{font-size:13px;font-weight:600;margin-bottom:1px;}
+.sched-note{font-size:11px;color:var(--muted);}
+.sched-why{font-size:10px;color:var(--teal);font-style:italic;margin-top:1px;}
+
+/* ============================================================ TOAST */
+.toast{
+  position:fixed;bottom:calc(76px + var(--safe-bottom));left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:var(--green);color:#000;padding:7px 16px;
+  border-radius:20px;font-family:'DM Mono',monospace;font-size:11px;
+  letter-spacing:1px;opacity:0;transition:all .22s;
+  pointer-events:none;z-index:999;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ============================================================ ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.fade-up{animation:fadeUp .28s ease both;}
+.pulse{animation:pulse 1.4s ease infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{animation:spin 1s linear infinite;}
+
+/* ============================================================ DESKTOP */
+@media(min-width:600px){
+  .bottom-nav{border-left:1px solid var(--border);border-right:1px solid var(--border);}
+}
+</style>
+</head>
+<body>
+<div class="toast" id="toast">✓ SAVED</div>
+
+<!-- ============================================================ ADVISOR -->
+<div class="advisor-wrap" id="advisor-wrap">
+  <div class="advisor-header">
+    <div style="font-size:20px">🤖</div>
+    <div>
+      <div class="advisor-title">Your Advisor</div>
+      <div class="advisor-sub">reads your real data · powered by Claude</div>
+    </div>
+    <button class="advisor-close" onclick="closeAdvisor()">✕</button>
+  </div>
+  <div class="advisor-msgs" id="advisor-msgs"></div>
+  <div class="advisor-input-row">
+    <textarea class="advisor-input" id="advisor-input" placeholder="Ask anything about your data..." rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+    <button class="advisor-send" onclick="sendMsg()">↑</button>
+  </div>
+</div>
+
+<!-- ============================================================ SLEEP MODAL -->
+<div class="overlay" id="sleep-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="sleep-sheet-title">Log Sleep</div>
+    <div class="fl"><div class="fl-lbl">Hours slept</div><input type="number" id="s-hrs" min="0" max="14" step="0.5" placeholder="e.g. 6.5"></div>
+    <div class="fl">
+      <div class="fl-lbl">Quality (1=bad · 5=great)</div>
+      <input type="range" id="s-qual" min="1" max="5" step="1" value="3">
+      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>bad</span><span>poor</span><span>ok</span><span>good</span><span>great</span></div>
+    </div>
+    <div class="fl"><div class="fl-lbl">Drinks that night</div><input type="number" id="s-drinks" min="0" max="20" placeholder="0 = none"></div>
+    <div class="fl"><div class="fl-lbl">Notes (optional)</div><textarea id="s-notes" rows="2" placeholder="Late? Stressed? Phone in bed?"></textarea></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-full" onclick="saveSleep()">Save</button>
+      <button class="btn btn-ghost" onclick="closeOverlay('sleep-overlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ SCHEDULE INPUT MODAL -->
+<div class="overlay" id="sched-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Build Today's Schedule</div>
+    <div class="fl"><div class="fl-lbl">Work shift starts</div>
+      <select id="sched-shift-start">
+        <option value="none">No work today</option>
+        <option value="5:00 AM">5:00 AM</option><option value="6:00 AM">6:00 AM</option>
+        <option value="7:00 AM" selected>7:00 AM</option><option value="8:00 AM">8:00 AM</option>
+        <option value="9:00 AM">9:00 AM</option><option value="10:00 AM">10:00 AM</option>
+        <option value="12:00 PM">12:00 PM</option>
+      </select>
+    </div>
+    <div class="fl"><div class="fl-lbl">Shift ends (est.)</div>
+      <select id="sched-shift-end">
+        <option value="none">N/A</option>
+        <option value="3:00 PM">3:00 PM</option><option value="4:00 PM">4:00 PM</option>
+        <option value="5:00 PM" selected>5:00 PM</option><option value="6:00 PM">6:00 PM</option>
+        <option value="7:00 PM">7:00 PM</option><option value="8:00 PM">8:00 PM</option>
+      </select>
+    </div>
+    <div class="fl"><div class="fl-lbl">Energy level right now (1–10)</div>
+      <input type="range" id="sched-energy" min="1" max="10" value="6">
+      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>depleted</span><span>okay</span><span>energized</span></div>
+    </div>
+    <div class="fl"><div class="fl-lbl">Free time available after work (hours)</div>
+      <select id="sched-free">
+        <option value="1">About 1 hour</option>
+        <option value="2" selected>About 2 hours</option>
+        <option value="3">About 3 hours</option>
+        <option value="4">4+ hours</option>
+      </select>
+    </div>
+    <div class="fl"><div class="fl-lbl">Brother available today?</div>
+      <select id="sched-brother">
+        <option value="yes">Yes — can help with house</option>
+        <option value="no">No</option>
+      </select>
+    </div>
+    <button class="btn btn-full" onclick="buildSchedule()">Build My Schedule</button>
+  </div>
+</div>
+
+<!-- ============================================================ APP SHELL -->
+<div class="shell">
+  <div class="topbar">
+    <div class="topbar-logo">Blueprint</div>
+    <div class="topbar-center" id="topbar-center">open ⚡ to start</div>
+    <div class="topbar-ai" onclick="openAdvisor()" title="AI Advisor">🤖</div>
+  </div>
+  <div class="sub-nav" id="sub-nav"></div>
+  <div class="main" id="main">
+    <div class="wrap" id="content"></div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn" id="nb-today" onclick="navGroup('today')"><div class="ni">⚡</div><div class="nl">Today</div></button>
+    <button class="nav-btn" id="nb-body" onclick="navGroup('body')"><div class="ni">💪</div><div class="nl">Body</div></button>
+    <button class="nav-btn" id="nb-finance" onclick="navGroup('finance')"><div class="ni">💰</div><div class="nl">Finance</div></button>
+    <button class="nav-btn" id="nb-build" onclick="navGroup('build')"><div class="ni">🏗️</div><div class="nl">Build</div></button>
+    <button class="nav-btn" id="nb-reflect" onclick="navGroup('reflect')"><div class="ni">📓</div><div class="nl">Reflect</div></button>
+  </nav>
+</div>
+
+<!-- PART 2 STARTS IMMEDIATELY BELOW — NO GAP -->
+<script>
+// ============================================================
+// CONFIG — paste your values here
+// ============================================================
+const CFG = {
+  SUPABASE_URL: 'xxxxxxxx',
+  SUPABASE_KEY: 'xxxxxxxxxx',
+  ANTHROPIC_KEY: 'xxxxxxxxx',
+  USER_ID: 'user_1',
+};
+
+// ============================================================
+// STORAGE + CLOUD SYNC
+// ============================================================
+function ld(k,d){try{const v=localStorage.getItem('bp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
+function sv(k,v){try{localStorage.setItem('bp_'+k,JSON.stringify(v));}catch{}}
+function showToast(msg='✓ SAVED',color='var(--green)'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=color;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);
+}
+const saveTimers={};
+async function save(key){
+  sv(key,S[key]);showToast();
+  clearTimeout(saveTimers[key]);
+  saveTimers[key]=setTimeout(async()=>{
+    if(CFG.SUPABASE_URL.includes('PASTE'))return;
+    try{
+      await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data`,{
+        method:'POST',
+        headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+        body:JSON.stringify({user_id:CFG.USER_ID,data_key:key,data_value:JSON.stringify(S[key]),updated_at:new Date().toISOString()}),
+      });
+    }catch{}
+  },2000);
+}
+async function cloudSync(){
+  if(CFG.SUPABASE_URL.includes('PASTE'))return;
+  try{
+    const res=await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&select=data_key,data_value,updated_at`,
+      {headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`}});
+    if(!res.ok)return;
+    const rows=await res.json();let updated=false;
+    rows.forEach(row=>{
+      const lt=localStorage.getItem('bp_sync_'+row.data_key);
+      if(!lt||new Date(row.updated_at)>new Date(lt)){
+        localStorage.setItem('bp_'+row.data_key,row.data_value);
+        localStorage.setItem('bp_sync_'+row.data_key,row.updated_at);
+        updated=true;
+      }
+    });
+    if(updated){Object.keys(S).forEach(k=>{S[k]=ld(k,S[k]);});renderCurrent();updateTopbar();}
+  }catch{}
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const S={
+  habits:ld('habits',{}), sleep:ld('sleep',{}),
+  checkins:ld('checkins',{}), calories:ld('calories',{}),
+  income:ld('income',[]), weightLog:ld('weightLog',[]),
+  notes:ld('notes',[]), reviews:ld('reviews',{}),
+  weeklyPlans:ld('weeklyPlans',{}), plan:ld('plan',{}),
+  house:ld('house',{}),
+  goals:ld('goals',{efund:0,car:0,savings:0}),
+  budget:ld('budget',{
+    income:[
+      {name:'Net Pay',amt:2960,tag:'Job',tc:'var(--green)'},
+      {name:'Gas Reimbursement',amt:250,tag:'Reimb',tc:'var(--purple)'},
+      {name:"Brother's Rent",amt:350,tag:'Offset',tc:'var(--blue)'},
+    ],
+    expenses:[
+      {name:'Mortgage',amt:836,tag:'Fixed',tc:'var(--muted)'},
+      {name:'Insurance ×2',amt:180,tag:'Fixed',tc:'var(--muted)'},
+      {name:'Utilities',amt:160,tag:'Fixed',tc:'var(--muted)'},
+      {name:'Phone + Internet',amt:110,tag:'Fixed',tc:'var(--muted)'},
+      {name:'Fast Food 🔥',amt:420,tag:'Drain',tc:'var(--red)'},
+      {name:'Bar 🔥',amt:400,tag:'Drain',tc:'var(--red)'},
+      {name:'Gas (personal)',amt:80,tag:'Fixed',tc:'var(--muted)'},
+      {name:'Misc',amt:200,tag:'?',tc:'var(--gold)'},
+    ],
+  }),
+  groceryList:ld('groceryList',[
+    {name:'Eggs (2 dozen)',owned:false,cost:4.00},
+    {name:'Chicken thighs (5 lb)',owned:false,cost:7.50},
+    {name:'Ground beef (2 lb)',owned:false,cost:6.00},
+    {name:'Rice (5 lb bag)',owned:false,cost:3.50},
+    {name:'Sweet potatoes (5 lb)',owned:false,cost:4.00},
+    {name:'Oats (large container)',owned:false,cost:4.00},
+    {name:'Bananas + apples',owned:false,cost:5.00},
+    {name:'Peanut butter (large)',owned:false,cost:5.00},
+    {name:'Frozen vegetables (2 bags)',owned:false,cost:6.00},
+    {name:'Greek yogurt (4 pack)',owned:false,cost:6.00},
+  ]),
+  creditScore:ld('creditScore',[]),
+  creditCards:ld('creditCards',[]),
+  debts:ld('debts',[]),
+  nwAssets:ld('nwAssets',[
+    {name:'Home (est. value)',val:150000},
+    {name:'Truck (est. value)',val:10000},
+    {name:'Cash / Savings',val:0},
+  ]),
+  nwLiabilities:ld('nwLiabilities',[{name:'Mortgage balance',val:138000}]),
+  nwHistory:ld('nwHistory',[]),
+  retSettings:ld('retSettings',{monthly:100,rate:7,currentAge:23,retireAge:65}),
+  taxSettings:ld('taxSettings',{incomeRate:22}),
+  propertyHistory:ld('propertyHistory',[]),
+  scheduleToday:ld('scheduleToday',null),
+  scheduleDateKey:ld('scheduleDateKey',''),
+  effHistory:ld('effHistory',[]),
+  recCache:ld('recCache',{}),
+  week:ld('week',0), week2:ld('week2',0),
+  calMonth:ld('calMonth',0), calHabit:ld('calHabit','drink'),
+  checkinDay:ld('checkinDay',0), calDay:ld('calDay',0),
+  sleepWeek:ld('sleepWeek',0), reviewMonth:ld('reviewMonth',0),
+};
+
+// ============================================================
+// STATIC DATA
+// ============================================================
+const HABITS=[
+  {id:'drink',ic:'🍺',name:'Cut bar nights',why:'1 night max, $30 cash — saves $280/mo, transforms sleep quality'},
+  {id:'exercise',ic:'💪',name:'Exercise / walk (20+ min)',why:'Cortisol reset, calorie burn, habit baseline — free, every day'},
+  {id:'food',ic:'🥗',name:'Real food only',why:'Groceries only — saves $300/mo, kills energy crashes, drives fat loss'},
+  {id:'house',ic:'🏠',name:'House task (30+ min)',why:'Every task = closer to selling = $836/mo freed permanently'},
+  {id:'sleep',ic:'😴',name:'In bed by 10:30 PM',why:'Muscle repair, cortisol reset, willpower restored for tomorrow'},
+  {id:'money',ic:'💰',name:'Track every dollar',why:'Can\'t fix what you can\'t see — 30 days changes your relationship with money'},
+  {id:'job',ic:'💼',name:'Tyler Union progress',why:'+$1,154/mo waiting — one 20-min action per day until done'},
+  {id:'phone',ic:'📵',name:'Doom scroll limit (30 min)',why:'14 hrs/week freed at this limit — anxiety drops within a week'},
+];
+
+const HOUSE_ROOMS=[
+  {name:'Exterior',tasks:[{t:'Touch up exterior paint',cat:'money'},{t:'Power wash driveway',cat:'money'},{t:'Mow and edge yard',cat:'free'},{t:'Clean gutters',cat:'free'},{t:'Replace outdoor fixtures',cat:'money'},{t:'Remove yard junk',cat:'free'}]},
+  {name:'Kitchen',tasks:[{t:'Deep clean surfaces + appliances',cat:'free'},{t:'Fix cabinet doors/drawers',cat:'free'},{t:'Re-caulk sink',cat:'free'},{t:'Ensure appliances work',cat:'crit'},{t:'Fix leaky faucet',cat:'crit'},{t:'Touch up paint + hardware',cat:'money'}]},
+  {name:'Bathrooms',tasks:[{t:'Re-caulk tub/shower',cat:'free'},{t:'Deep clean tile/grout',cat:'free'},{t:'Fix toilet/faucet',cat:'crit'},{t:'Exhaust fan working',cat:'crit'},{t:'Touch up paint',cat:'money'}]},
+  {name:'Living Areas',tasks:[{t:'Patch all drywall holes',cat:'crit'},{t:'Paint rooms neutral',cat:'crit'},{t:'Deep clean floors',cat:'free'},{t:'Clean all windows',cat:'free'},{t:'Replace broken switches',cat:'crit'},{t:'Fix doors/squeaks',cat:'free'}]},
+  {name:'Systems',tasks:[{t:'Replace HVAC filter',cat:'crit'},{t:'Test smoke/CO detectors',cat:'crit'},{t:'Check water heater',cat:'crit'},{t:'Inspect under sinks',cat:'crit'},{t:'Test all outlets',cat:'crit'}]},
+  {name:'Sale Prep',tasks:[{t:'Declutter — remove 70%',cat:'free'},{t:'Deep clean everything',cat:'free'},{t:'Touch up all paint edges',cat:'money'},{t:'Professional photos',cat:'money'},{t:'Agent walkthrough',cat:'help'},{t:'Research comparable sales',cat:'free'}]},
+];
+
+const PHASES=[
+  {n:'01',title:'Stop the Bleeding',time:'This Week',col:'var(--accent)',acts:[
+    {t:'Reapply to Tyler Union today — 20 min. Highest ROI action you have.',imp:'highest'},
+    {t:'Zero drinks Sun–Thu. One bar night Friday, $30 cash, card home.',imp:'highest'},
+    {t:'Write every house task on paper tonight.',imp:'high'},
+    {t:'Buy $80 groceries Wednesday.',imp:'high'},
+    {t:'Walk 20 min tomorrow morning before work.',imp:'high'},
+    {t:'Get 2 transmission quotes this week.',imp:'medium'},
+  ]},
+  {n:'02',title:'Build Margin',time:'Months 1–3',col:'var(--gold)',acts:[
+    {t:'Build $500 emergency fund — food + bar savings go here first.',imp:'high'},
+    {t:'Every Wednesday = house day, 4–5 hrs, brother involved.',imp:'high'},
+    {t:'2 strength sessions/week on days off.',imp:'high'},
+    {t:'Post hauling/handyman on Facebook Marketplace Thursdays.',imp:'high'},
+    {t:'1 intentional evening with Oscar per week.',imp:'medium'},
+  ]},
+  {n:'03',title:'Sell House → Reset',time:'Months 3–7',col:'var(--green)',acts:[
+    {t:'Agent walkthrough when 80% complete.',imp:'high'},
+    {t:'List and sell — use equity as runway.',imp:'high'},
+    {t:'Take Tyler Union without desperation.',imp:'high'},
+  ]},
+  {n:'04',title:'Build the Life',time:'Month 7–18',col:'var(--blue)',acts:[
+    {t:'Scale side hustle to $1,500–$3,000/mo.',imp:'high'},
+    {t:'Start property flip #2.',imp:'high'},
+    {t:'Open Roth IRA — $100/mo S&P 500 at Fidelity.',imp:'high'},
+    {t:'One outdoor adventure per month.',imp:'medium'},
+  ]},
+];
+
+const CREDIT_FACTORS=[
+  {id:'payment',label:'Payment History',weight:35,icon:'✅',tip:'Never miss a payment. One 30-day late can drop score 60–110 pts.'},
+  {id:'util',label:'Credit Utilization',weight:30,icon:'📊',tip:'Keep every card under 10% utilization. Under 30% absolute minimum.'},
+  {id:'length',label:'Account Age',weight:15,icon:'📅',tip:'Never close your oldest card. Age builds passively.'},
+  {id:'mix',label:'Credit Mix',weight:10,icon:'🔀',tip:'Your mortgage helps this. Already have a good mix.'},
+  {id:'inquiries',label:'New Credit',weight:10,icon:'🔍',tip:'Each hard inquiry drops ~5 pts. Avoid applying near a loan.'},
+];
+
+const IDENTITY=[
+  'A man who does what he says — starting with the small things.',
+  'Someone who earns with his hands and builds with intention.',
+  'Financially free enough to choose — not trapped by bills.',
+  'Physically strong and healthy — not running on caffeine and alcohol.',
+  'A builder of property, income, body, and life — on his own terms.',
+  'The person his dad would have wanted to see him become.',
+];
+
+// ============================================================
+// UTILITIES
+// ============================================================
+const DAYS=['M','T','W','T','F','S','S'];
+const MONTHS_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const QLBLS=['','😫','😕','😐','🙂','😊'];
+
+function getWk(off=0){const d=new Date();const dy=d.getDay();const diff=d.getDate()-dy+(dy===0?-6:1);const m=new Date(d);m.setDate(diff+(off*7));return m.toISOString().split('T')[0];}
+function getDK(off=0){const d=new Date();d.setDate(d.getDate()+off);return d.toISOString().split('T')[0];}
+function getMK(off=0){const d=new Date();d.setMonth(d.getMonth()+off);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function getML(off=0){const d=new Date();d.setMonth(d.getMonth()+off);return`${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`;}
+function fmtWk(key){const d=new Date(key+'T12:00:00');const e=new Date(d);e.setDate(e.getDate()+6);const f=x=>x.toLocaleDateString('en-US',{month:'short',day:'numeric'});return`${f(d)} – ${f(e)}`;}
+function fmtDay(off=0){const d=new Date();d.setDate(d.getDate()+off);return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}
+function fmtMoney(n){if(Math.abs(n)>=1000000)return'$'+(n/1000000).toFixed(1)+'M';if(Math.abs(n)>=1000)return'$'+(n/1000).toFixed(1)+'k';return(n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString();}
+function sc(s){if(s===null||s===undefined)return'var(--muted)';if(s>=75)return'var(--green)';if(s>=50)return'var(--gold)';if(s>=25)return'var(--accent)';return'var(--red)';}
+function creditColor(s){if(s>=750)return'var(--green)';if(s>=700)return'var(--teal)';if(s>=650)return'var(--gold)';if(s>=600)return'var(--accent)';return'var(--red)';}
+function creditLabel(s){if(s>=800)return'Exceptional';if(s>=740)return'Very Good';if(s>=670)return'Good';if(s>=580)return'Fair';return'Poor';}
+
+// ============================================================
+// SCORING ENGINE
+// ============================================================
+function computeScores(){
+  const wk=getWk(0);
+  let hDone=0,hLogged=0;
+  HABITS.forEach(h=>DAYS.forEach((_,di)=>{const v=S.habits[`${wk}_${h.id}_${di}`];if(v===1){hDone++;hLogged++;}else if(v===2)hLogged++;}));
+  const habitScore=hLogged===0?null:Math.round((hDone/hLogged)*100);
+  const sleepE=DAYS.map((_,di)=>S.sleep[`${wk}_${di}`]).filter(Boolean);
+  let sleepScore=null;
+  if(sleepE.length>0){const avg=sleepE.reduce((a,e)=>a+e.hrs,0)/sleepE.length;const dn=sleepE.filter(e=>e.drinks>0).length;sleepScore=Math.min(100,Math.round((Math.min(avg,8)/8)*60+((sleepE.length-dn)/sleepE.length)*40));}
+  let hsDone=0,hsTotal=0;
+  HOUSE_ROOMS.forEach((r,ri)=>r.tasks.forEach((_,ti)=>{hsTotal++;if(S.house[`${ri}_${ti}`])hsDone++;}));
+  const houseScore=hsDone===0?null:Math.round((hsDone/hsTotal)*100);
+  const ts=(S.goals.efund||0)+(S.goals.car||0)+(S.goals.savings||0);
+  const savingsScore=ts===0?null:Math.min(100,Math.round((ts/4500)*100));
+  let pDone=0,pTotal=0;
+  PHASES.forEach(p=>p.acts.forEach((_,i)=>{pTotal++;if(S.plan[`${p.n}_${i}`])pDone++;}));
+  const planScore=pDone===0?null:Math.round((pDone/pTotal)*100);
+  const dk=getDK(0);
+  const todayCal=S.calories[dk]?S.calories[dk].entries.reduce((a,e)=>a+(e.cal||0),0):0;
+  const totalIncome=S.income.reduce((a,e)=>a+(e.amt||0),0);
+  let bestStreak=0;HABITS.forEach(h=>{const s=calcStreak(h.id);if(s>bestStreak)bestStreak=s;});
+  const scored=[habitScore,sleepScore,houseScore,savingsScore,planScore].filter(v=>v!==null);
+  const overall=scored.length===0?null:Math.round(scored.reduce((a,v)=>a+v,0)/scored.length);
+  const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);
+  return{overall,habitScore,sleepScore,houseScore,savingsScore,planScore,hDone,hLogged,hsDone,hsTotal,pDone,pTotal,sleepE,todayCal,totalIncome,bestStreak,nw};
+}
+
+function calcStreak(id){let s=0;for(let w=0;w>=-12;w--){const wk=getWk(w);for(let d=6;d>=0;d--){const v=S.habits[`${wk}_${id}_${d}`];if(v===1)s++;else if(v===2)return s;}}return s;}
+
+// ============================================================
+// EFFICIENCY SCORE
+// ============================================================
+function computeEff(){
+  const dk=getDK(0);const wk=getWk(0);const ci=S.checkins[dk]||{};
+  const today=new Date();const todayIdx=today.getDay()===0?6:today.getDay()-1;
+  const todayCal=S.calories[dk]?S.calories[dk].entries.reduce((a,e)=>a+(e.cal||0),0):0;
+  const priorityDone=!!(ci.win||ci.improve);
+  const calOnTarget=todayCal>0&&todayCal<=2400;
+  const exerciseDone=!!(S.habits[`${wk}_exercise_${todayIdx}`]===1);
+  const schedAnchors=S.scheduleDateKey===dk&&!!S.scheduleToday;
+  let pts=0;
+  if(priorityDone)pts+=35;
+  if(schedAnchors)pts+=25;
+  if(calOnTarget)pts+=20;
+  if(exerciseDone)pts+=20;
+  return{
+    total:pts,
+    priority:{pts:priorityDone?35:0,max:35,done:priorityDone},
+    schedule:{pts:schedAnchors?25:0,max:25,done:schedAnchors},
+    calories:{pts:calOnTarget?20:0,max:20,done:calOnTarget},
+    exercise:{pts:exerciseDone?20:0,max:20,done:exerciseDone},
+  };
+}
+
+function effLabel(s){if(s>=90)return'Exceptional day';if(s>=70)return'Strong execution';if(s>=50)return'Solid progress';if(s>=25)return'Getting started';return'Open to begin';}
+function effColor(s){if(s>=80)return'var(--green)';if(s>=50)return'var(--gold)';if(s>=25)return'var(--accent)';return'var(--muted)';}
+
+function saveEffHistory(){
+  const dk=getDK(0);const eff=computeEff();
+  const existing=S.effHistory.find(e=>e.date===dk);
+  if(existing){existing.score=eff.total;}
+  else{S.effHistory.push({date:dk,score:eff.total});}
+  if(S.effHistory.length>30)S.effHistory=S.effHistory.slice(-30);
+  sv('effHistory',S.effHistory);
+}
+
+function updateTopbar(){
+  const scores=computeScores();const eff=computeEff();
+  const el=document.getElementById('topbar-center');
+  if(!el)return;
+  if(scores.overall===null){el.innerHTML='tap <b>⚡ Today</b> to begin';}
+  else{el.innerHTML=`score <b>${scores.overall}/100</b> · streak <b>${scores.bestStreak}d${scores.bestStreak>=7?'🔥':''}</b>`;}
+}
+
+// ============================================================
+// RECOMMENDATION ENGINE
+// ============================================================
+const REC_CACHE_TTL=8*60*60*1000;// 8 hours
+
+async function getRecommendation(type,contextData){
+  const dk=getDK(0);const cacheKey=`${type}_${dk}`;
+  const cached=S.recCache[cacheKey];
+  if(cached&&(Date.now()-cached.ts)<REC_CACHE_TTL)return cached.data;
+  if(CFG.ANTHROPIC_KEY.includes('PASTE'))return null;
+
+  const scores=computeScores();
+  const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
+  const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);
+  const ownedItems=S.groceryList.filter(g=>g.owned).map(g=>g.name).join(', ')||'unknown';
+  const foodBudgetLeft=Math.max(0,(S.budget.expenses.find(e=>e.name.includes('Fast Food'))||{amt:0}).amt-scores.todayCal*0.015);
+  const ci=S.checkins[dk]||{};
+  const energy=ci.energy||5;
+  const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;
+  const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dayName=dayNames[dow];
+  const isWed=dow===2;const isThu=dow===3;
+  let hsDone=0,hsTotal=0;
+  HOUSE_ROOMS.forEach((r,ri)=>r.tasks.forEach((t,ti)=>{hsTotal++;if(S.house[`${ri}_${ti}`])hsDone++;}));
+  const nextHouseTasks=HOUSE_ROOMS.flatMap((r,ri)=>r.tasks.map((t,ti)=>({...t,key:`${ri}_${ti}`,room:r.name}))).filter(t=>!S.house[t.key]).slice(0,5).map(t=>`${t.t} (${t.cat}, ${t.room})`).join(', ');
+
+  const PROMPTS={
+    meal:`You are a meal advisor for a 23-year-old blue-collar worker. Give ONE specific meal recommendation for tonight based on their data.
+
+USER DATA:
+- Day: ${dayName}, energy level: ${energy}/10
+- Calories logged today: ${scores.todayCal} (target: 2300)
+- Grocery items they own: ${ownedItems}
+- Weekly food budget remaining: ~$${Math.round(foodBudgetLeft)}
+- Current weight: ${S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215} lbs, goal: 185 lbs
+
+Respond in this EXACT JSON format (no other text):
+{
+  "action": "One sentence: exactly what to cook tonight",
+  "steps": ["Step 1", "Step 2", "Step 3", "Step 4"],
+  "projected": "Saves $X, Y cal, Z grams protein",
+  "cost_of_skipping": "If you get fast food instead: +$X, +Y cal, Z weeks longer to goal weight",
+  "alternative": "If energy too low: simpler option that still hits protein target",
+  "time_required": "X minutes"
+}`,
+
+    exercise:`You are a fitness advisor. Give ONE specific exercise recommendation based on their data.
+
+USER DATA:
+- Day: ${dayName}, energy: ${energy}/10
+- Time available: ~${contextData?.freeTime||2} hours
+- Current phase: Phase 1 (weeks 1–4, bodyweight only)
+- Exercise streak: ${calcStreak('exercise')} days
+- Last sleep quality: ${S.sleep[`${getWk(0)}_${dow>0?dow-1:6}`]?.qual||'unknown'}/5
+
+Respond in EXACT JSON:
+{
+  "action": "Exactly what to do today for exercise",
+  "steps": ["Step 1 with reps/time", "Step 2", "Step 3"],
+  "projected": "X cal burned, maintains Y-day streak, specific benefit",
+  "cost_of_skipping": "What breaking the streak costs psychologically and physically",
+  "alternative": "Lower-energy modification if they feel worse than expected",
+  "time_required": "X minutes"
+}`,
+
+    house:`You are a house project advisor. Give ONE specific house task recommendation.
+
+USER DATA:
+- Day: ${dayName} (${isWed?'WEDNESDAY - house day!':isThu?'Thursday - recovery day':'work day'})
+- Time available: ${contextData?.freeTime||1.5} hours
+- Energy level: ${energy}/10
+- Brother available: ${contextData?.brother||'unknown'}
+- House progress: ${hsDone}/${hsTotal} tasks complete
+- Next open tasks: ${nextHouseTasks}
+
+Respond in EXACT JSON:
+{
+  "action": "One specific task to do today and exactly when",
+  "steps": ["Exactly what to buy (if anything)", "Step 2", "Step 3", "Step 4"],
+  "projected": "X minutes to complete, Y% closer to sale, est. $Z added sale value",
+  "cost_of_skipping": "X more weeks until sale, $Y more in mortgage payments",
+  "alternative": "Shorter task if time is limited",
+  "time_required": "X minutes"
+}`,
+
+    finance:`You are a financial advisor. Give ONE specific financial move recommendation.
+
+USER DATA:
+- Monthly income: $${tIn}, expenses: $${tOut}, surplus: ${tIn-tOut>=0?'+':''}$${tIn-tOut}
+- Emergency fund: $${S.goals.efund||0} of $500 target
+- Side hustle income: $${scores.totalIncome}
+- Net worth: ${fmtMoney(scores.nw)}
+- Credit score: ${S.creditScore.length?S.creditScore[S.creditScore.length-1].score:'not logged'}
+- Mortgage: ~$138,000 remaining, balloon due Sept 2034
+- Day of week: ${dayName}
+
+Respond in EXACT JSON:
+{
+  "action": "One specific financial action to take today or this week",
+  "steps": ["Step 1 with exact amounts", "Step 2", "Step 3"],
+  "projected": "Specific dollar impact and timeline",
+  "cost_of_skipping": "What it costs in real dollars or opportunity to wait",
+  "alternative": "If cash is tight: smaller version of the same move",
+  "time_required": "X minutes"
+}`,
+
+    schedule:`You are a schedule optimizer. Build a specific time-blocked schedule for today.
+
+USER DATA:
+- Day: ${dayName}, energy: ${energy}/10
+- Work shift: ${contextData?.shiftStart||'7:00 AM'} to ${contextData?.shiftEnd||'5:00 PM'}
+- Free time after work: ${contextData?.freeTime||2} hours
+- Brother available: ${contextData?.brother||'unknown'}
+- Today's priority: ${ci.priority||'not set yet'}
+- Is Wednesday: ${isWed}, Is Thursday: ${isThu}
+- House task due: ${isWed?nextHouseTasks.split(',')[0]:'no'}
+- Exercise: ${calcStreak('exercise')}-day streak, ${energy>=6?'energy good':'low energy, keep it light'}
+
+Respond in EXACT JSON:
+{
+  "blocks": [
+    {"time": "5:50 AM", "label": "Wake + no phone 10 min", "note": "reason", "color": "var(--accent)"},
+    {"time": "6:10 AM", "label": "Walk 20 min", "note": "reason", "color": "var(--green)"}
+  ],
+  "summary": "One sentence about today's focus given the specifics",
+  "key_win": "The single most important thing on this schedule"
+}`,
+  };
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',max_tokens:600,
+        messages:[{role:'user',content:PROMPTS[type]}],
+      }),
+    });
+    if(!res.ok)return null;
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'';
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    S.recCache[cacheKey]={data:parsed,ts:Date.now()};
+    sv('recCache',S.recCache);
+    return parsed;
+  }catch(e){console.log('Rec engine error:',e);return null;}
+}
+
+function recCardHtml(type,icon,title,tag){
+  return`<div class="rec-card" id="rec-${type}">
+    <div class="rec-header">
+      <div class="rec-icon">${icon}</div>
+      <div class="rec-title">${title}</div>
+      <div class="rec-tag">${tag}</div>
+    </div>
+    <div class="rec-loading pulse" id="rec-${type}-body">
+      <div class="spin" style="font-size:16px">⟳</div>
+      <span>Getting recommendation...</span>
+    </div>
+    <div class="rec-actions" id="rec-${type}-actions" style="display:none">
+      <button class="rec-expand-btn" onclick="refreshRec('${type}')">↻ Refresh</button>
+    </div>
+  </div>`;
+}
+
+async function loadRec(type,icon,title,tag,contextData){
+  const data=await getRecommendation(type,contextData);
+  const bodyEl=document.getElementById(`rec-${type}-body`);
+  const actEl=document.getElementById(`rec-${type}-actions`);
+  if(!bodyEl)return;
+  if(!data){
+    bodyEl.className='rec-body';
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Add your Anthropic API key to enable recommendations. See SETUP_GUIDE.txt.</div>`;
+    return;
+  }
+  bodyEl.className='rec-body';
+  bodyEl.innerHTML=`
+    <div class="rec-action">${data.action}</div>
+    <div class="rec-steps">
+      ${(data.steps||[]).map((s,i)=>`<div class="rec-step"><div class="rec-step-num">${i+1}</div><div>${s}</div></div>`).join('')}
+    </div>
+    <div class="rec-grid">
+      <div class="rec-stat"><div class="rec-stat-val" style="color:var(--green);font-size:14px">${data.projected||'—'}</div><div class="rec-stat-lbl">If you do it</div></div>
+      <div class="rec-stat"><div class="rec-stat-val" style="color:var(--muted);font-size:11px">${data.time_required||'—'}</div><div class="rec-stat-lbl">Time needed</div></div>
+    </div>
+    <div class="rec-cost"><b>If you skip:</b> ${data.cost_of_skipping||'—'}</div>
+    <div class="rec-alt"><b>Alternative:</b> ${data.alternative||'—'}</div>
+  `;
+  if(actEl)actEl.style.display='flex';
+}
+
+function refreshRec(type){
+  const dk=getDK(0);const cacheKey=`${type}_${dk}`;
+  delete S.recCache[cacheKey];sv('recCache',S.recCache);
+  const bodyEl=document.getElementById(`rec-${type}-body`);
+  if(bodyEl){bodyEl.className='rec-loading pulse';bodyEl.innerHTML='<div class="spin" style="font-size:16px">⟳</div><span>Refreshing...</span>';}
+  loadRec(type,'','','',null);
+}
+
+// ============================================================
+// DAILY AUTO-RECOMMENDATION (fires once per day before 10 AM)
+// ============================================================
+async function runMorningRecs(){
+  const dk=getDK(0);const h=new Date().getHours();
+  if(h>=10)return;// Only auto-run morning
+  const done=localStorage.getItem('bp_morning_rec_'+dk);
+  if(done)return;
+  localStorage.setItem('bp_morning_rec_'+dk,'1');
+  // Pre-cache all recs in background
+  ['meal','exercise','house','finance'].forEach(type=>{
+    const dk2=getDK(0);const cacheKey=`${type}_${dk2}`;
+    if(!S.recCache[cacheKey])getRecommendation(type,null);
+  });
+}
+
+// ============================================================
+// RENDER: DASHBOARD
+// ============================================================
+function renderDashboard(){
+  const scores=computeScores();const eff=computeEff();
+  const dk=getDK(0);const wk=getWk(0);
+  const ci=S.checkins[dk]||{};
+  const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;
+  const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const isWed=dow===2;const isThu=dow===3;
+  const dayColor=isWed?'var(--gold)':isThu?'var(--teal)':'var(--accent)';
+  const dayTag=isWed?'🏠 Progress Day — Your most valuable day':isThu?'🌿 Recovery Day — Protect this':'💼 Work Day';
+  const lastSleep=S.sleep[`${wk}_${dow>0?dow-1:6}`];
+  const todayCal=S.calories[dk]?S.calories[dk].entries.reduce((a,e)=>a+(e.cal||0),0):0;
+  const habitsDone=HABITS.filter(h2=>S.habits[`${wk}_${h2.id}_${dow}`]===1).length;
+  const effC=effColor(eff.total);
+
+  document.getElementById('content').innerHTML=`
+  <!-- Day header -->
+  <div style="padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;text-transform:uppercase;line-height:1">${dayNames[dow]}, ${today.toLocaleDateString('en-US',{month:'long',day:'numeric'})}</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:${dayColor};margin-top:3px;letter-spacing:1px">${dayTag}</div>
+  </div>
+
+  <!-- Efficiency Score Panel -->
+  <div class="section">
+    <div class="eff-panel">
+      <div class="eff-top">
+        <div class="eff-ring">
+          <svg width="88" height="88" viewBox="0 0 88 88">
+            <circle cx="44" cy="44" r="36" fill="none" stroke="var(--dim)" stroke-width="8"/>
+            <circle cx="44" cy="44" r="36" fill="none" stroke="${effC}" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${2*Math.PI*36}"
+              stroke-dashoffset="${2*Math.PI*36*(1-eff.total/100)}"
+              transform="rotate(-90 44 44)" style="transition:stroke-dashoffset .7s cubic-bezier(.4,0,.2,1)"/>
+          </svg>
+          <div class="eff-ring-center">
+            <div class="eff-score-num" style="color:${effC}">${eff.total}</div>
+            <div class="eff-score-lbl">today</div>
+          </div>
+        </div>
+        <div class="eff-info">
+          <div class="eff-title">${effLabel(eff.total)}</div>
+          <div class="eff-desc">Daily efficiency score. Resets at midnight. Earn points by completing your priority, following your schedule, hitting calories, and exercising.</div>
+          <div class="eff-bars">
+            ${[['Priority',eff.priority.pts,eff.priority.max,eff.priority.done],['Schedule',eff.schedule.pts,eff.schedule.max,eff.schedule.done],['Calories',eff.calories.pts,eff.calories.max,eff.calories.done],['Exercise',eff.exercise.pts,eff.exercise.max,eff.exercise.done]].map(([l,p,m,done])=>`
+            <div class="eff-bar-row">
+              <div class="eff-bar-lbl" style="color:${done?'var(--text)':'var(--muted)'}">${done?'✓':' '} ${l}</div>
+              <div class="eff-bar-track"><div class="eff-bar-fill" style="width:${Math.round(p/m*100)}%;background:${done?'var(--green)':'var(--dim)'}"></div></div>
+              <div class="eff-bar-pts" style="color:${done?'var(--green)':'var(--muted)'}">${p}/${m}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+      ${S.effHistory.length>1?`
+      <div class="eff-history">
+        <div class="eff-hist-label">Last ${Math.min(14,S.effHistory.length)} days</div>
+        <div class="eff-chart">
+          ${[...S.effHistory].slice(-14).map(e=>`<div class="eff-bar-c" style="height:${Math.max(8,Math.round(e.score/100*100))}%;background:${effColor(e.score)};opacity:.7" title="${e.date}: ${e.score}/100"></div>`).join('')}
+        </div>
+      </div>`:''}
+    </div>
+  </div>
+
+  <!-- Today's priority -->
+  <div class="section">
+    <div class="sec-lbl">Today's Priority</div>
+    <div class="card">
+      ${ci.priority
+        ?`<div class="row"><div style="font-size:18px">🎯</div><div style="flex:1"><div class="row-title">${ci.priority}</div>${ci.obstacle?`<div class="row-sub">⚡ Watch for: ${ci.obstacle}</div>`:''}</div><button class="btn btn-sm btn-ghost" onclick="show('checkin')">Edit</button></div>`
+        :`<div class="row"><div style="font-size:18px">💭</div><div style="flex:1"><div class="row-title" style="color:var(--muted)">Not set yet</div><div class="row-sub">Set your #1 priority to earn 35 efficiency points</div></div><button class="btn btn-sm" onclick="show('checkin')">Set Now</button></div>`
+      }
+    </div>
+  </div>
+
+  <!-- Quick stats -->
+  <div class="section">
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat"><div class="stat-val" style="color:${habitsDone>=6?'var(--green)':habitsDone>=4?'var(--gold)':'var(--muted)'}">${habitsDone}/${HABITS.length}</div><div class="stat-lbl">Habits</div></div>
+      <div class="stat"><div class="stat-val" style="color:${todayCal>0?todayCal>2400?'var(--red)':'var(--green)':'var(--muted)'}">${todayCal>0?todayCal:'—'}</div><div class="stat-lbl">Cal</div></div>
+      <div class="stat"><div class="stat-val" style="color:${lastSleep?lastSleep.hrs>=7?'var(--green)':lastSleep.hrs>=5?'var(--gold)':'var(--red)':'var(--muted)'}">${lastSleep?lastSleep.hrs+'h':'—'}</div><div class="stat-lbl">Sleep</div></div>
+      <div class="stat"><div class="stat-val" style="color:${scores.overall!==null?sc(scores.overall):'var(--muted)'}">${scores.overall!==null?scores.overall:'—'}</div><div class="stat-lbl">Score</div></div>
+    </div>
+  </div>
+
+  <!-- Today's recommendations -->
+  <div class="section">
+    <div class="sec-lbl">Today's Recommendations</div>
+    ${recCardHtml('meal','🍽️','Tonight\'s Meal','AI · Personalized')}
+    ${recCardHtml('exercise','💪','Exercise Plan','AI · Personalized')}
+    ${isWed||isThu?recCardHtml('house','🏠','House Task','AI · Personalized'):''}
+    ${recCardHtml('finance','💰','Financial Move','AI · Personalized')}
+  </div>
+
+  <!-- Quick habit log -->
+  <div class="section">
+    <div class="sec-lbl">Quick Log — Today</div>
+    <div class="card">
+      ${HABITS.map(h2=>{
+        const k=`${wk}_${h2.id}_${dow}`;const v=S.habits[k]||0;
+        const bg=v===1?'rgba(0,204,122,.1)':v===2?'rgba(240,48,80,.07)':'';
+        const bc=v===1?'var(--green)':v===2?'var(--red)':'var(--border)';
+        return`<div class="row" style="background:${bg};border-left:3px solid ${bc}" onclick="quickLog('${k}')">
+          <div style="font-size:18px">${h2.ic}</div>
+          <div style="flex:1"><div class="row-title">${h2.name}</div><div class="row-sub">${h2.why.split('—')[0].trim()}</div></div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:${v===1?'var(--green)':v===2?'var(--red)':'var(--muted)'}">${v===1?'✓ DONE':v===2?'✗ SKIP':'tap'}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  ${isWed?`<div class="alert ao" style="margin-top:12px"><b>Wednesday — Progress Day.</b> House block at 9 AM. Strength at 10:30. Side hustle at noon. Another house block at 2 PM. This day alone changes your financial situation in 3 months.</div>`:''}
+  ${isThu?`<div class="alert ag" style="margin-top:12px"><b>Thursday — Recovery Day.</b> No alarm. Outdoors. Meal prep for 3 days. One admin task max. Protect this evening — you work Friday.</div>`:''}
+  <div class="alert ao" style="margin-top:12px"><b>Tyler Union:</b> $1,154/mo waiting. 20 minutes. Do it before closing this app.</div>
+  `;
+
+  // Load recs after DOM is ready
+  requestAnimationFrame(()=>{
+    loadRec('meal','🍽️','Tonight\'s Meal','AI',null);
+    loadRec('exercise','💪','Exercise Plan','AI',null);
+    if(isWed||isThu)loadRec('house','🏠','House Task','AI',null);
+    loadRec('finance','💰','Financial Move','AI',null);
+  });
+}
+
+function quickLog(k){S.habits[k]=(S.habits[k]||0)+1;if(S.habits[k]>2)S.habits[k]=0;save('habits');saveEffHistory();renderDashboard();}
+
+// ============================================================
+// RENDER: CHECK-IN
+// ============================================================
+function renderCheckin(){
+  const dk=getDK(S.checkinDay);const ex=S.checkins[dk]||{};
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase">${fmtDay(S.checkinDay)}</div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay--;save('checkinDay');renderCheckin()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay=0;save('checkinDay');renderCheckin()">Today</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay++;save('checkinDay');renderCheckin()">→</button>
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">☀ Morning — Set the Day</div>
+    <div class="card cp">
+      <div class="fl"><div class="fl-lbl">Energy right now (1–10)</div>
+        <input type="range" id="ci-energy" min="1" max="10" value="${ex.energy||5}">
+        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>depleted</span><span>okay</span><span>energized</span></div>
+      </div>
+      <div class="fl"><div class="fl-lbl">Mood</div>
+        <div class="mood-row">${['😫','😕','😐','🙂','😄'].map((m,i)=>`<div class="mood-btn ${ex.mood==i+1?'sel':''}" onclick="setMood(${i+1},'${dk}')">${m}</div>`).join('')}</div>
+      </div>
+      <div class="fl"><div class="fl-lbl">Today's #1 Priority (one thing only)</div><input type="text" id="ci-priority" value="${ex.priority||''}" placeholder="The one thing that makes today a win..."></div>
+      <div class="fl"><div class="fl-lbl">What could get in the way?</div><input type="text" id="ci-obstacle" value="${ex.obstacle||''}" placeholder="Be specific about the likely resistance..."></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">🌙 Evening — Close the Day</div>
+    <div class="card cp">
+      <div class="fl"><div class="fl-lbl">Today's biggest win</div><input type="text" id="ci-win" value="${ex.win||''}" placeholder="Something you did, avoided, or chose well..."></div>
+      <div class="fl"><div class="fl-lbl">One thing to do differently tomorrow</div><input type="text" id="ci-improve" value="${ex.improve||''}" placeholder="Specific and actionable..."></div>
+      <div class="fl"><div class="fl-lbl">Honest score for today (1–10)</div>
+        <input type="range" id="ci-score" min="1" max="10" value="${ex.score||5}">
+        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>rough</span><span>okay</span><span>great</span></div>
+      </div>
+      <button class="btn btn-full" onclick="saveCheckin('${dk}')">Save Check-In</button>
+    </div>
+  </div>
+  ${Object.entries(S.checkins).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,5).map(([k,v])=>`
+  <div class="card cp" style="margin-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${k}</div>
+      <div style="display:flex;gap:8px;align-items:center">${v.mood?`<span style="font-size:16px">${['😫','😕','😐','🙂','😄'][(v.mood||3)-1]}</span>`:''} ${v.score?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${sc(v.score*10)}">${v.score}/10</span>`:''}</div>
+    </div>
+    ${v.priority?`<div style="font-size:12px;margin-bottom:3px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Priority </span>${v.priority}</div>`:''}
+    ${v.win?`<div style="font-size:12px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px">Win </span>${v.win}</div>`:''}
+  </div>`).join('')}
+  `;
+}
+function setMood(val,dk){if(!S.checkins[dk])S.checkins[dk]={};S.checkins[dk].mood=val;save('checkins');renderCheckin();}
+function saveCheckin(dk){
+  if(!S.checkins[dk])S.checkins[dk]={};
+  const g=id=>document.getElementById(id);
+  S.checkins[dk].energy=parseInt(g('ci-energy').value)||5;
+  S.checkins[dk].priority=g('ci-priority').value;
+  S.checkins[dk].obstacle=g('ci-obstacle').value;
+  S.checkins[dk].win=g('ci-win').value;
+  S.checkins[dk].improve=g('ci-improve').value;
+  S.checkins[dk].score=parseInt(g('ci-score').value)||5;
+  save('checkins');saveEffHistory();renderCheckin();showToast('✓ Check-in saved');
+}
+
+// ============================================================
+// RENDER: SCHEDULE BUILDER
+// ============================================================
+function renderSchedule(){
+  const dk=getDK(0);const hasSchedule=S.scheduleDateKey===dk&&S.scheduleToday;
+  document.getElementById('content').innerHTML=`
+  <div style="padding-top:4px" class="fade-up">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">Schedule Builder</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:14px">AI builds your specific day based on your shift, energy, and priorities</div>
+  </div>
+  ${hasSchedule?`
+  <div class="section">
+    ${recCardHtml('schedule-display','📅','Today\'s Schedule','Built for your day')}
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button class="btn btn-ghost btn-sm" onclick="openOverlay('sched-overlay')">Rebuild</button>
+  </div>`:`
+  <div class="alert ab"><b>Build your schedule for today</b> based on your actual shift time, energy level, and what needs to happen. Takes 30 seconds to set up, gives you a specific time-blocked plan.</div>
+  <button class="btn btn-full btn-teal" onclick="openOverlay('sched-overlay')">Build Today's Schedule →</button>
+  `}
+  `;
+  if(hasSchedule){
+    requestAnimationFrame(()=>{
+      const bodyEl=document.getElementById('rec-schedule-display-body');
+      const actEl=document.getElementById('rec-schedule-display-actions');
+      if(!bodyEl||!S.scheduleToday)return;
+      const d=S.scheduleToday;
+      bodyEl.className='rec-body';
+      bodyEl.innerHTML=`
+        ${d.summary?`<div style="font-size:13px;color:var(--soft);margin-bottom:12px;font-style:italic">${d.summary}</div>`:''}
+        ${d.key_win?`<div style="padding:9px 12px;background:rgba(0,204,122,.08);border:1px solid rgba(0,204,122,.2);border-radius:8px;font-size:13px;font-weight:600;color:var(--green);margin-bottom:12px">🎯 Key win: ${d.key_win}</div>`:''}
+        <div style="padding:10px 14px">
+          ${(d.blocks||[]).map(b=>`<div class="sched-item">
+            <div class="sched-time">${b.time}</div>
+            <div class="sched-line"><div class="sched-dot" style="background:${b.color||'var(--accent)'}"></div><div class="sched-connector"></div></div>
+            <div class="sched-content"><div class="sched-label">${b.label}</div>${b.note?`<div class="sched-note">${b.note}</div>`:''}</div>
+          </div>`).join('')}
+        </div>
+      `;
+      if(actEl)actEl.style.display='flex';
+    });
+  }
+}
+
+async function buildSchedule(){
+  const shiftStart=document.getElementById('sched-shift-start').value;
+  const shiftEnd=document.getElementById('sched-shift-end').value;
+  const energy=parseInt(document.getElementById('sched-energy').value)||6;
+  const freeTime=parseFloat(document.getElementById('sched-free').value)||2;
+  const brother=document.getElementById('sched-brother').value;
+  closeOverlay('sched-overlay');
+  const dk=getDK(0);
+  const ci=S.checkins[dk]||{};
+  if(!S.checkins[dk])S.checkins[dk]={};
+  S.checkins[dk].energy=energy;
+  sv('checkins',S.checkins);
+  document.getElementById('content').innerHTML=`<div class="wrap"><div class="alert ab pulse"><b>Building your schedule...</b> Takes about 10 seconds.</div></div>`;
+  const data=await getRecommendation('schedule',{shiftStart,shiftEnd,freeTime,brother,energy});
+  if(data){
+    S.scheduleToday=data;S.scheduleDateKey=dk;
+    sv('scheduleToday',data);sv('scheduleDateKey',dk);
+    saveEffHistory();
+  }
+  renderSchedule();
+}
+
+// ============================================================
+// RENDER: HABITS
+// ============================================================
+function renderHabits(){
+  const wk=getWk(S.week);
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--soft)">${fmtWk(wk)}</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="S.week--;save('week');renderHabits()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.week=0;save('week');renderHabits()">Now</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.week++;save('week');renderHabits()">→</button>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:4px;padding-right:50px;margin:6px 0 4px">
+    ${DAYS.map(l=>`<div style="width:27px;text-align:center;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${l}</div>`).join('')}
+  </div>
+  <div class="card">
+    ${HABITS.map(h=>{
+      let done=0,logged=0;
+      const days=DAYS.map((_,di)=>{const k=`${wk}_${h.id}_${di}`;const v=S.habits[k]||0;if(v===1)done++;if(v>0)logged++;return`<div class="hday ${v===1?'done':v===2?'skip':''}" onclick="cycleH('${k}')">${v===1?'✓':v===2?'✗':''}</div>`;}).join('');
+      const streak=calcStreak(h.id);
+      const stC=streak>=21?'var(--purple)':streak>=14?'var(--green)':streak>=7?'var(--gold)':streak>=3?'var(--accent)':'var(--muted)';
+      const emoji=streak>=21?'🔥🔥🔥':streak>=14?'🔥🔥':streak>=7?'🔥':streak>=3?'⚡':'';
+      return`<div class="habit-row">
+        <div class="h-ic">${h.ic}</div>
+        <div style="flex:1;min-width:0"><div class="h-name">${h.name}</div><div class="h-why">${h.why.split('.')[0]}.</div></div>
+        <div class="h-days">${days}</div>
+        <div class="streak" style="color:${stC}">${streak>0?streak+'d':''}${emoji}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  `;
+}
+function cycleH(k){S.habits[k]=(S.habits[k]||0)+1;if(S.habits[k]>2)S.habits[k]=0;save('habits');saveEffHistory();renderHabits();}
+
+// ============================================================
+// RENDER: CALORIES + MEAL REC
+// ============================================================
+function renderCalories(){
+  const dk=getDK(S.calDay);
+  const day=S.calories[dk]||{entries:[]};
+  const tot={cal:0,prot:0,carb:0,fat:0};
+  day.entries.forEach(e=>{tot.cal+=(e.cal||0);tot.prot+=(e.prot||0);tot.carb+=(e.carb||0);tot.fat+=(e.fat||0);});
+  const pct=Math.min(100,Math.round((tot.cal/2300)*100));
+  const calC=tot.cal>2600?'var(--red)':tot.cal>2300?'var(--gold)':'var(--green)';
+
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;text-transform:uppercase">${fmtDay(S.calDay)}</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="S.calDay--;save('calDay');renderCalories()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.calDay=0;save('calDay');renderCalories()">Today</button>
+    </div>
+  </div>
+
+  <!-- Today's Meal Recommendation -->
+  <div class="section">
+    ${recCardHtml('meal-cal','🍽️','Tonight\'s Meal Recommendation','AI · Budget-aware')}
+  </div>
+
+  <!-- Macro summary -->
+  <div class="section">
+    <div style="display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:42px;font-weight:800;line-height:1;color:${calC}">${tot.cal}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px">/ 2,300 cal</div>
+        <div style="width:76px;margin-top:6px"><div class="prog"><div class="prog-fill" style="width:${pct}%;background:${calC}"></div></div></div>
+      </div>
+      <div style="flex:1">
+        ${[['Protein',tot.prot,185,'var(--blue)'],['Carbs',tot.carb,230,'var(--gold)'],['Fat',tot.fat,70,'var(--purple)']].map(([l,v,t,c])=>`
+        <div style="margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span style="color:${c}">${l}</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${v}/${t}g</span></div>
+          <div class="prog"><div class="prog-fill" style="width:${Math.min(100,Math.round(v/t*100))}%;background:${c}"></div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- Add food -->
+  <div class="section">
+    <div class="sec-lbl">Log Food</div>
+    <div class="card cp">
+      <div class="fl"><div class="fl-lbl">Food / Meal</div><input type="text" id="food-name" placeholder="e.g. 4 eggs + oats + banana"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fl" style="margin:0"><div class="fl-lbl">Calories</div><input type="number" id="food-cal" placeholder="450"></div>
+        <div class="fl" style="margin:0"><div class="fl-lbl">Protein (g)</div><input type="number" id="food-prot" placeholder="35"></div>
+        <div class="fl" style="margin:0"><div class="fl-lbl">Carbs (g)</div><input type="number" id="food-carb" placeholder="45"></div>
+        <div class="fl" style="margin:0"><div class="fl-lbl">Fat (g)</div><input type="number" id="food-fat" placeholder="12"></div>
+      </div>
+      <div class="fl"><div class="fl-lbl">Meal type</div>
+        <select id="food-meal"><option value="Breakfast">Breakfast</option><option value="Lunch">Lunch</option><option value="Dinner">Dinner</option><option value="Snack">Snack</option><option value="Alcohol">Alcohol 🍺</option></select>
+      </div>
+      <button class="btn btn-full" onclick="addFood()">Add Food</button>
+    </div>
+  </div>
+
+  <!-- Grocery list -->
+  <div class="section">
+    <div class="sec-lbl">Grocery List — Mark What You Have</div>
+    <div class="card">
+      ${S.groceryList.map((item,i)=>`<div class="row" onclick="toggleGrocery(${i})">
+        <div class="chk ${item.owned?'done':''}">${item.owned?'✓':''}</div>
+        <div style="flex:1"><div class="row-title" style="${item.owned?'text-decoration:line-through;color:var(--muted)':''}">${item.name}</div></div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--green)">~$${item.cost.toFixed(2)}</div>
+      </div>`).join('')}
+      <div style="padding:10px 14px;background:var(--dim);font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">
+        ${S.groceryList.filter(g=>g.owned).length}/${S.groceryList.length} items owned · ~$${S.groceryList.filter(g=>!g.owned).reduce((a,g)=>a+g.cost,0).toFixed(2)} to spend
+      </div>
+    </div>
+  </div>
+
+  <!-- Food log -->
+  ${day.entries.length?`
+  <div class="section">
+    <div class="sec-lbl">Today's Log</div>
+    <div class="card">
+      ${day.entries.map((e,i)=>{const mc={Breakfast:'var(--gold)',Lunch:'var(--green)',Dinner:'var(--blue)',Snack:'var(--teal)',Alcohol:'var(--red)'};return`<div class="row">
+        <div style="flex:1"><div class="row-title">${e.name}</div><div class="row-sub">${e.prot}g P · ${e.carb}g C · ${e.fat}g F · <span style="color:${mc[e.meal]||'var(--muted)'};">${e.meal}</span></div></div>
+        <div class="row-val">${e.cal}</div>
+        <button onclick="removeFood('${dk}',${i})" style="background:none;border:none;color:var(--muted);font-size:19px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
+      </div>`;}).join('')}
+      <div style="padding:10px 14px;background:var(--dim);display:flex;justify-content:space-between">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">Total</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${calC}">${tot.cal} cal · ${tot.prot}g P</span>
+      </div>
+    </div>
+  </div>`:''}
+  <div class="alert ay" style="margin-top:12px"><b>Alcohol = hidden calories.</b> 1 beer = 150 cal. A bar night of 8 = 1,200 cal = over half your daily target. Log it to see the real number.</div>
+  `;
+
+  requestAnimationFrame(()=>{
+    const ownedItems=S.groceryList.filter(g=>g.owned).map(g=>g.name).join(', ');
+    loadRec('meal-cal','🍽️','Tonight\'s Meal','AI',{ownedItems});
+  });
+}
+function addFood(){
+  const dk=getDK(S.calDay);if(!S.calories[dk])S.calories[dk]={entries:[]};
+  const name=document.getElementById('food-name').value.trim();if(!name)return;
+  S.calories[dk].entries.push({name,cal:parseInt(document.getElementById('food-cal').value)||0,prot:parseInt(document.getElementById('food-prot').value)||0,carb:parseInt(document.getElementById('food-carb').value)||0,fat:parseInt(document.getElementById('food-fat').value)||0,meal:document.getElementById('food-meal').value});
+  save('calories');saveEffHistory();renderCalories();
+}
+function removeFood(dk,i){if(!S.calories[dk])return;S.calories[dk].entries.splice(i,1);save('calories');renderCalories();}
+function toggleGrocery(i){S.groceryList[i].owned=!S.groceryList[i].owned;save('groceryList');renderCalories();}
+
+// ============================================================
+// RENDER: SLEEP
+// ============================================================
+let activeSleepKey=null;
+function renderSleep(){
+  const wk=getWk(S.sleepWeek);
+  const entries=DAYS.map((_,di)=>S.sleep[`${wk}_${di}`]).filter(Boolean);
+  const base=new Date(wk+'T12:00:00');
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--soft)">${fmtWk(wk)}</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="S.sleepWeek--;save('sleepWeek');renderSleep()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.sleepWeek=0;save('sleepWeek');renderSleep()">Now</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.sleepWeek++;save('sleepWeek');renderSleep()">→</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:12px 0">
+    ${DAYS.map((dl,di)=>{
+      const d=new Date(base);d.setDate(d.getDate()+di);
+      const sk=`${wk}_${di}`;const e=S.sleep[sk];
+      const hc=e?(e.hrs>=7?'var(--green)':e.hrs>=5?'var(--gold)':'var(--red)'):'var(--muted)';
+      return`<div class="sleep-cell" onclick="openSleepModal('${sk}','${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}')">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:2px">${dl}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:${hc};line-height:1">${e?e.hrs:'—'}</div>
+        <div style="font-size:12px;margin-top:2px">${e?(QLBLS[e.qual]||''):'💤'}</div>
+        ${e&&e.drinks>0?`<div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--red);margin-top:1px">${e.drinks}🍺</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>
+  ${entries.length>0?`
+  <div class="stat-grid" style="margin-bottom:12px">
+    <div class="stat"><div class="stat-val" style="color:${parseFloat((entries.reduce((a,e)=>a+e.hrs,0)/entries.length).toFixed(1))>=7?'var(--green)':parseFloat((entries.reduce((a,e)=>a+e.hrs,0)/entries.length).toFixed(1))>=5?'var(--gold)':'var(--red)'}">${(entries.reduce((a,e)=>a+e.hrs,0)/entries.length).toFixed(1)}h</div><div class="stat-lbl">Avg hours</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--blue)">${(entries.reduce((a,e)=>a+e.qual,0)/entries.length).toFixed(1)}/5</div><div class="stat-lbl">Quality</div></div>
+    <div class="stat"><div class="stat-val" style="color:${entries.filter(e=>e.drinks>0).length>2?'var(--red)':'var(--gold)'}">${entries.filter(e=>e.drinks>0).length}</div><div class="stat-lbl">Drink nights</div></div>
+  </div>`:`<div style="text-align:center;padding:20px;font-size:13px;color:var(--muted)">Tap any day to log sleep</div>`}
+  <div class="alert ag">Target: <b>7–8 hrs</b> · Bed by <b>10:30 PM</b> · Phone away <b>10 PM</b> · No alcohol <b>3 hrs before sleep</b>.</div>
+  `;
+}
+function openSleepModal(key,dateStr){
+  activeSleepKey=key;document.getElementById('sleep-sheet-title').textContent=dateStr;
+  const e=S.sleep[key];
+  document.getElementById('s-hrs').value=e?.hrs||'';document.getElementById('s-qual').value=e?.qual||3;
+  document.getElementById('s-drinks').value=e?.drinks||0;document.getElementById('s-notes').value=e?.notes||'';
+  openOverlay('sleep-overlay');
+}
+function saveSleep(){
+  if(!activeSleepKey)return;
+  S.sleep[activeSleepKey]={hrs:parseFloat(document.getElementById('s-hrs').value)||0,qual:parseInt(document.getElementById('s-qual').value)||3,drinks:parseInt(document.getElementById('s-drinks').value)||0,notes:document.getElementById('s-notes').value};
+  save('sleep');closeOverlay('sleep-overlay');renderSleep();
+}
+
+// ============================================================
+// RENDER: WORKOUTS
+// ============================================================
+function renderWorkouts(){
+  const plans=[
+    {title:'Full Body A',sub:'Sat + Wed · ~35 min · Bodyweight',bc:'var(--green)',badge:'Phase 1+',ex:[
+      ['Bodyweight Squat','3 × 12','Biggest muscles = most calories. Foundation.'],
+      ['Push-Up','3 × 8–12','Chest, shoulders, triceps. Most functional move.'],
+      ['Door Frame Row','3 × 10','Back and biceps. Counters driving posture.'],
+      ['Reverse Lunge','3 × 10 each','Single-leg. Easy on knees.'],
+      ['Plank','3 × 20–45 sec','Core stability. Reduces back pain from labor.'],
+      ['Glute Bridge','3 × 15','Glutes + lower back. Counters sitting in truck.'],
+      ['Dead Bug','3 × 8 each','Deep core. Protects back on heavy days.'],
+    ]},
+    {title:'Full Body B',sub:'Alternate with A · ~40 min · Dumbbells',bc:'var(--gold)',badge:'Phase 2+',ex:[
+      ['Romanian Deadlift','3 × 10','Best posterior chain exercise.'],
+      ['Shoulder Press','3 × 10','Overhead strength you use at work.'],
+      ['One-Arm Row','3 × 10 each','Upper back. Posture correction.'],
+      ['Goblet Squat','3 × 12','Deeper squat. Quads + glutes.'],
+      ['Floor Press','3 × 10','Chest + triceps variation.'],
+      ['Farmer Carry','3 × 35 sec','Grip + core. Transfers to hauling.'],
+      ['Side Plank','3 × 25 sec each','Lateral core. Prevents rotation injury.'],
+    ]},
+    {title:'Cardio',sub:'Tue + Thu · 20–30 min · Outside',bc:'var(--blue)',badge:'All Phases',ex:[
+      ['Wk 1–2: Walk only','20–25 min brisk','Build habit first. No joint stress.'],
+      ['Wk 3–4: Intervals','Walk 3 / Jog 1 × 5','Introduces jogging without burnout.'],
+      ['Wk 5–8: Jog breaks','Jog 5 / Walk 1 × 4','Build aerobic base.'],
+      ['Wk 9–12: Continuous','20–25 min easy','If you can\'t talk, slow down.'],
+      ['Mo 3+: Build out','25–30 min + hills','Variety prevents boredom.'],
+    ]},
+  ];
+  document.getElementById('content').innerHTML=`
+  ${recCardHtml('exercise-tab','💪','Today\'s Exercise Recommendation','AI · Energy-aware')}
+  <div class="section">
+    <div class="sec-lbl">Phase 1 — Weeks 1–4, bodyweight only, 2×/week</div>
+    ${plans.map(p=>`<div class="card" style="margin-bottom:10px">
+      <div style="padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+        <div style="flex:1"><div style="font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;text-transform:uppercase">${p.title}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px">${p.sub}</div></div>
+        <span style="font-family:'DM Mono',monospace;font-size:9px;padding:2px 8px;border-radius:5px;background:${p.bc}18;color:${p.bc};text-transform:uppercase">${p.badge}</span>
+      </div>
+      ${p.ex.map((e,i)=>`<div class="row">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:var(--dim);min-width:22px">${i+1}</div>
+        <div style="flex:1"><div class="row-title">${e[0]}</div><div class="row-sub" style="color:var(--teal);font-style:italic">${e[2]}</div></div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-align:right">${e[1]}</div>
+      </div>`).join('')}
+      <div style="padding:9px 14px;background:var(--dim);font-size:11px;color:var(--muted)">Rest 60–90 sec between sets. Form over speed. Start where you are.</div>
+    </div>`).join('')}
+  </div>
+  `;
+  requestAnimationFrame(()=>loadRec('exercise-tab','💪','Exercise Plan','AI',null));
+}
+
+// ============================================================
+// RENDER: BUDGET + FINANCIAL MOVE REC
+// ============================================================
+function renderBudget(){
+  const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
+  const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);
+  const surplus=tIn-tOut;
+  document.getElementById('content').innerHTML=`
+  ${recCardHtml('finance-budget','💰','This Week\'s Financial Move','AI · Personalized')}
+  <div class="section">
+    <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px">
+      <div class="stat"><div class="stat-val" style="color:var(--green)">$${tIn.toLocaleString()}</div><div class="stat-lbl">In</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--red)">$${tOut.toLocaleString()}</div><div class="stat-lbl">Out</div></div>
+      <div class="stat"><div class="stat-val" style="color:${surplus>=0?'var(--green)':'var(--red)'}">${surplus>=0?'+':''}$${Math.abs(surplus).toLocaleString()}</div><div class="stat-lbl">Surplus</div></div>
+    </div>
+    <div class="sec-lbl">Income</div>
+    <div class="card" style="margin-bottom:10px">
+      ${S.budget.income.map((r,i)=>`<div class="row">
+        <input style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.income[${i}].name=this.value;save('budget')">
+        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:14px;width:74px;text-align:right;color:var(--green)" value="${r.amt}" onblur="S.budget.income[${i}].amt=parseFloat(this.value)||0;save('budget');renderBudget()">
+        <button onclick="S.budget.income.splice(${i},1);save('budget');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
+      </div>`).join('')}
+      <div style="padding:8px 14px;background:var(--dim);font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">Total: +$${tIn.toLocaleString()}</div>
+    </div>
+    <div class="sec-lbl">Expenses</div>
+    <div class="card">
+      ${S.budget.expenses.map((r,i)=>`<div class="row">
+        <input style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.expenses[${i}].name=this.value;save('budget')">
+        <span style="font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:5px;background:${r.tc}18;color:${r.tc};text-transform:uppercase;flex-shrink:0;margin:0 6px">${r.tag}</span>
+        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:14px;width:74px;text-align:right;color:${r.tc}" value="${r.amt}" onblur="S.budget.expenses[${i}].amt=parseFloat(this.value)||0;save('budget');renderBudget()">
+        <button onclick="S.budget.expenses.splice(${i},1);save('budget');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
+      </div>`).join('')}
+      <div style="padding:8px 14px">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="exp-name" placeholder="Add expense..." style="flex:1">
+          <input type="number" id="exp-amt" placeholder="$" style="width:80px">
+          <button class="btn btn-sm" onclick="addExp()">+</button>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:var(--dim);display:flex;justify-content:space-between">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">Surplus</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${surplus>=0?'var(--green)':'var(--red)'}">${surplus>=0?'+':''}$${Math.abs(surplus).toLocaleString()}</span>
+      </div>
+    </div>
+  </div>
+  <div class="alert ag" style="margin-top:10px"><b>Two changes = +$480/mo:</b> Groceries instead of fast food + bar to 1 night/$30. Emergency fund in 10 weeks from those two changes alone.</div>
+  `;
+  requestAnimationFrame(()=>loadRec('finance-budget','💰','Financial Move','AI',null));
+}
+function addExp(){const n=document.getElementById('exp-name').value.trim();const a=parseFloat(document.getElementById('exp-amt').value)||0;if(!n)return;S.budget.expenses.push({name:n,amt:a,tag:'Expense',tc:'var(--muted)'});save('budget');renderBudget();}
+
+// ============================================================
+// RENDER: CREDIT + NET WORTH
+// ============================================================
+function renderCredit(){
+  const latest=S.creditScore.length?S.creditScore[S.creditScore.length-1]:null;
+  const score=latest?latest.score:null;
+  const circ=2*Math.PI*52;
+  const offset=score?circ-(((score-300)/550)*circ):circ;
+  const tA=S.nwAssets.reduce((a,v)=>a+v.val,0);const tL=S.nwLiabilities.reduce((a,v)=>a+v.val,0);const nw=tA-tL;
+
+  document.getElementById('content').innerHTML=`
+  <div class="g2" style="padding-top:4px;margin-bottom:14px">
+    <div class="card cp" style="text-align:center">
+      <div style="display:inline-block;position:relative;margin-bottom:8px">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--dim)" stroke-width="9"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="${score?creditColor(score):'var(--border)'}" stroke-width="9"
+            stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+            transform="rotate(-90 60 60)" style="transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;line-height:1;color:${score?creditColor(score):'var(--muted)'}">${score||'—'}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px">${score?creditLabel(score):'Not logged'}</div>
+        </div>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Credit Score</div>
+      <div style="display:flex;gap:7px">
+        <input type="number" id="new-score" placeholder="300–850" style="flex:1">
+        <button class="btn btn-sm" onclick="logScore()">Log</button>
+      </div>
+    </div>
+    <div class="card cp" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:800;line-height:1;color:${nw>=0?'var(--green)':'var(--red)'};margin-bottom:4px">${fmtMoney(nw)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Net Worth</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Assets: ${fmtMoney(tA)} · Debt: ${fmtMoney(tL)}</div>
+      <button class="btn btn-sm btn-ghost btn-full" onclick="show('networth')">Manage →</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-lbl">Credit Factors</div>
+    <div class="card">
+      ${CREDIT_FACTORS.map(f=>`<div class="credit-factor">
+        <div style="font-size:18px;flex-shrink:0;margin-top:2px">${f.icon}</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <div style="font-size:13px;font-weight:500">${f.label}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${f.weight}%</div>
+          </div>
+          <div class="prog"><div class="prog-fill" style="width:${f.weight*3}%;background:var(--blue)"></div></div>
+          <div style="font-size:11px;color:var(--soft);margin-top:3px">${f.tip}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-lbl">Credit Cards + Utilization</div>
+    <div class="ab"><b>Utilization = 30% of your score.</b> Keep every card under 10% for max impact.</div>
+    <div class="card cp">
+      ${S.creditCards.map((c,i)=>{
+        const util=c.limit>0?Math.round((c.balance/c.limit)*100):0;
+        const uc=util<=10?'var(--green)':util<=30?'var(--gold)':'var(--red)';
+        return`<div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-size:13px;font-weight:600">${c.name}</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${uc}">${util}%</div>
+          </div>
+          <div class="prog"><div class="prog-fill" style="width:${Math.min(100,util)}%;background:${uc}"></div></div>
+          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">
+            <span>$${c.balance} balance</span><span>$${c.limit} limit</span>
+          </div>
+          <button onclick="S.creditCards.splice(${i},1);save('creditCards');renderCredit()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:4px">Remove</button>
+        </div>`;
+      }).join('')}
+      <div style="border-top:${S.creditCards.length?'1px solid var(--border)':'none'};padding-top:${S.creditCards.length?'12px':'0'}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="fl" style="margin:0"><div class="fl-lbl">Card Name</div><input type="text" id="card-name" placeholder="e.g. Chase Freedom"></div>
+          <div class="fl" style="margin:0"><div class="fl-lbl">Credit Limit</div><input type="number" id="card-limit" placeholder="$5000"></div>
+          <div class="fl" style="margin:0"><div class="fl-lbl">Current Balance</div><input type="number" id="card-bal" placeholder="$500"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn btn-full" onclick="addCard()">Add Card</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+function logScore(){const s=parseInt(document.getElementById('new-score').value);if(!s||s<300||s>850)return;S.creditScore.push({score:s,date:new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'})});save('creditScore');renderCredit();}
+function addCard(){const name=document.getElementById('card-name').value.trim();const limit=parseFloat(document.getElementById('card-limit').value)||0;const balance=parseFloat(document.getElementById('card-bal').value)||0;if(!name||!limit)return;S.creditCards.push({name,limit,balance});save('creditCards');renderCredit();}
+
+// ============================================================
+// RENDER: NET WORTH
+// ============================================================
+function renderNetWorth(){
+  const tA=S.nwAssets.reduce((a,v)=>a+v.val,0);const tL=S.nwLiabilities.reduce((a,v)=>a+v.val,0);const nw=tA-tL;
+  document.getElementById('content').innerHTML=`
+  <div class="card cp" style="text-align:center;padding-top:4px;margin-bottom:14px;border:1px solid rgba(0,204,122,.15)">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Net Worth</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;color:${nw>=0?'var(--green)':'var(--red)'};line-height:1">${fmtMoney(nw)}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">${nw>=0?'Positive net worth at 23. Most people your age have far less.':'Working toward positive — every habit and savings dollar moves this.'}</div>
+    <button class="btn btn-sm btn-ghost" onclick="snapshotNW()" style="margin-top:10px">Snapshot to History</button>
+  </div>
+  <div class="g2">
+    <div class="card cp">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:8px">Assets</div>
+      ${S.nwAssets.map((a,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input style="background:transparent;border:none;color:var(--text);font-size:13px;flex:1;min-width:0" value="${a.name}" onblur="S.nwAssets[${i}].name=this.value;save('nwAssets')">
+        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:13px;width:78px;text-align:right;color:var(--green)" value="${a.val}" onblur="S.nwAssets[${i}].val=parseFloat(this.value)||0;save('nwAssets');renderNetWorth()">
+        <button onclick="S.nwAssets.splice(${i},1);save('nwAssets');renderNetWorth()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;min-height:var(--touch);padding:0 2px">×</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <input type="text" id="nwa-n" placeholder="Asset" style="flex:1">
+        <input type="number" id="nwa-v" placeholder="$" style="width:80px">
+        <button class="btn btn-sm" onclick="addNW('asset')">+</button>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--green)">Total: ${fmtMoney(tA)}</div>
+    </div>
+    <div class="card cp">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">Liabilities</div>
+      ${S.nwLiabilities.map((l,i)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input style="background:transparent;border:none;color:var(--text);font-size:13px;flex:1;min-width:0" value="${l.name}" onblur="S.nwLiabilities[${i}].name=this.value;save('nwLiabilities')">
+        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:13px;width:78px;text-align:right;color:var(--red)" value="${l.val}" onblur="S.nwLiabilities[${i}].val=parseFloat(this.value)||0;save('nwLiabilities');renderNetWorth()">
+        <button onclick="S.nwLiabilities.splice(${i},1);save('nwLiabilities');renderNetWorth()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;min-height:var(--touch);padding:0 2px">×</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <input type="text" id="nwl-n" placeholder="Liability" style="flex:1">
+        <input type="number" id="nwl-v" placeholder="$" style="width:80px">
+        <button class="btn btn-sm" onclick="addNW('liability')">+</button>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--red)">Total: ${fmtMoney(tL)}</div>
+    </div>
+  </div>
+  ${S.nwHistory.length>1?`
+  <div class="section">
+    <div class="sec-lbl">Net Worth History</div>
+    <div class="card">
+      ${[...S.nwHistory].reverse().slice(0,8).map((h,i,arr)=>{const prev=arr[i+1];const diff=prev?h.nw-prev.nw:0;return`<div class="row">
+        <div style="flex:1"><div class="row-title">${h.date}</div></div>
+        ${diff!==0?`<div style="font-family:'DM Mono',monospace;font-size:12px;color:${diff>0?'var(--green)':'var(--red)'}">${diff>0?'+':''}${fmtMoney(diff)}</div>`:''}
+        <div class="row-val" style="color:${h.nw>=0?'var(--green)':'var(--red)'}">${fmtMoney(h.nw)}</div>
+      </div>`;}).join('')}
+    </div>
+  </div>`:''}
+  `;
+}
+function addNW(type){const n=document.getElementById(type==='asset'?'nwa-n':'nwl-n');const v=document.getElementById(type==='asset'?'nwa-v':'nwl-v');const name=n.value.trim();const val=parseFloat(v.value)||0;if(!name)return;if(type==='asset')S.nwAssets.push({name,val});else S.nwLiabilities.push({name,val});save(type==='asset'?'nwAssets':'nwLiabilities');n.value='';v.value='';renderNetWorth();}
+function snapshotNW(){const tA=S.nwAssets.reduce((a,v)=>a+v.val,0);const tL=S.nwLiabilities.reduce((a,v)=>a+v.val,0);const date=new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'});S.nwHistory.push({date,nw:tA-tL});save('nwHistory');renderNetWorth();}
+
+// ============================================================
+// RENDER: RETIREMENT
+// ============================================================
+function renderRetirement(){
+  const s=S.retSettings;const years=s.retireAge-s.currentAge;const mr=s.rate/100/12;
+  const fv=s.monthly*((Math.pow(1+mr,years*12)-1)/mr);
+  const milestones=[30,40,50,55,60,65].filter(a=>a>s.currentAge);
+  document.getElementById('content').innerHTML=`
+  <div class="card cp" style="text-align:center;padding-top:4px;margin-bottom:14px;border:1px solid rgba(0,204,122,.15)">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">At Age ${s.retireAge}</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;color:var(--green);line-height:1">${fmtMoney(Math.round(fv))}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">$${s.monthly}/mo at ${s.rate}% · starting age ${s.currentAge}</div>
+  </div>
+  <div class="card cp" style="margin-bottom:12px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Adjust</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fl" style="margin:0"><div class="fl-lbl">Monthly ($)</div><input type="number" id="ret-m" value="${s.monthly}" onblur="S.retSettings.monthly=parseFloat(this.value)||100;save('retSettings');renderRetirement()"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Return (%)</div><input type="number" id="ret-r" value="${s.rate}" step="0.5" onblur="S.retSettings.rate=parseFloat(this.value)||7;save('retSettings');renderRetirement()"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Your Age</div><input type="number" id="ret-a" value="${s.currentAge}" onblur="S.retSettings.currentAge=parseInt(this.value)||23;save('retSettings');renderRetirement()"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Retire At</div><input type="number" id="ret-ra" value="${s.retireAge}" onblur="S.retSettings.retireAge=parseInt(this.value)||65;save('retSettings');renderRetirement()"></div>
+    </div>
+  </div>
+  <div class="sec-lbl">Milestones</div>
+  <div class="card">
+    ${milestones.map(age=>{const yrs=age-s.currentAge;const val=s.monthly*((Math.pow(1+mr,yrs*12)-1)/mr);return`<div class="row">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--dim);min-width:36px">${age}</div>
+      <div style="flex:1"><div class="row-title">Age ${age}</div><div class="row-sub">${yrs} years of investing</div></div>
+      <div class="row-val" style="color:var(--green)">${fmtMoney(Math.round(val))}</div>
+    </div>`;}).join('')}
+  </div>
+  <div class="alert ag" style="margin-top:12px"><b>At 23, $100/mo = ${fmtMoney(Math.round(100*((Math.pow(1+mr,42*12)-1)/mr)))} at 65.</b> Wait 10 years and it's ${fmtMoney(Math.round(100*((Math.pow(1+mr,32*12)-1)/mr)))}. The cost of waiting is built by compounding. Open a Roth IRA at Fidelity — 15 minutes, free.</div>
+  `;
+}
+
+// ============================================================
+// RENDER: TAXES
+// ============================================================
+function renderTaxes(){
+  const total=S.income.reduce((a,e)=>a+(e.amt||0),0);
+  const seRate=0.153;const incRate=S.taxSettings.incomeRate/100;
+  const seTax=total*seRate;const incomeTax=total*incRate*0.5;const totalTax=seTax+incomeTax;
+  document.getElementById('content').innerHTML=`
+  <div class="alert ar"><b>Side hustle over $400/year = self-employment income.</b> You owe 15.3% SE tax + income tax. Set aside money per job or April will hurt.</div>
+  <div class="stat-grid" style="margin-bottom:12px">
+    <div class="stat"><div class="stat-val" style="color:var(--green)">$${total.toLocaleString()}</div><div class="stat-lbl">Total Earned</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--red)">$${Math.round(totalTax).toLocaleString()}</div><div class="stat-lbl">Est. Tax</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">$${Math.round(total*.28).toLocaleString()}</div><div class="stat-lbl">Set Aside 28%</div></div>
+  </div>
+  <div class="sec-lbl">Per-Job Breakdown</div>
+  <div class="card">
+    ${[50,100,150,200,300,500].map(job=>`<div class="row">
+      <div style="flex:1"><div class="row-title">$${job} job</div><div class="row-sub">Keep $${Math.round(job*.72)} · Set aside $${Math.round(job*.28)} for taxes</div></div>
+      <div class="row-val" style="color:var(--red)">-$${Math.round(job*.28)}</div>
+    </div>`).join('')}
+  </div>
+  <div class="card cp" style="margin-top:10px">
+    <div class="fl"><div class="fl-lbl">Your income tax bracket</div>
+      <select onchange="S.taxSettings.incomeRate=parseInt(this.value);save('taxSettings');renderTaxes()">
+        ${[10,12,22,24,32].map(r=>`<option value="${r}" ${S.taxSettings.incomeRate===r?'selected':''}>${r}% bracket</option>`).join('')}
+      </select>
+    </div>
+    <div class="ag"><b>Rule of thumb:</b> Separate account labeled "Taxes." Transfer 28% of every job payment immediately. Never touch until April.</div>
+  </div>
+  `;
+}
+
+// ============================================================
+// RENDER: HOUSE + TASK REC
+// ============================================================
+function renderHouse(){
+  let td=0,tt=0;
+  const rooms=HOUSE_ROOMS.map((room,ri)=>{
+    let rd=0;
+    const tasks=room.tasks.map((task,ti)=>{
+      const k=`${ri}_${ti}`;const done=S.house[k];tt++;if(done){td++;rd++;}
+      const tcs={crit:'var(--red)',free:'var(--green)',money:'var(--gold)',help:'var(--blue)'};
+      const cats={crit:'Critical',free:'Free',money:'Needs $',help:'Help'};
+      return`<div class="row" onclick="toggleHouse('${k}')" style="${done?'opacity:.45':''}">
+        <div class="chk ${done?'done':''}">${done?'✓':''}</div>
+        <div style="flex:1"><div class="row-title" style="${done?'text-decoration:line-through':''}">${task.t}</div></div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;padding:2px 7px;border-radius:5px;background:${tcs[task.cat]}18;color:${tcs[task.cat]}">${cats[task.cat]}</div>
+      </div>`;
+    }).join('');
+    const rp=room.tasks.length?Math.round(rd/room.tasks.length*100):0;
+    return`<div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase">${room.name}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${rd}/${room.tasks.length} · ${rp}%</div>
+      </div>
+      <div class="prog" style="margin-bottom:6px"><div class="prog-fill" style="width:${rp}%;background:linear-gradient(90deg,var(--accent),var(--green))"></div></div>
+      <div class="card">${tasks}</div>
+    </div>`;
+  }).join('');
+
+  const pct=tt?Math.round(td/tt*100):0;
+  document.getElementById('content').innerHTML=`
+  ${recCardHtml('house-tab','🏠','Today\'s House Task Recommendation','AI · Time & priority aware')}
+  <div class="section">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="flex:1"><div class="prog"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--green))"></div></div></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--accent)">${td}/${tt} · ${pct}%</div>
+    </div>
+    <div class="ao"><b>Each task = closer to selling = $836/mo freed.</b> Wednesday blocks: 3 hrs/week = done in 8–10 weeks.</div>
+    ${rooms}
+  </div>
+  `;
+  requestAnimationFrame(()=>loadRec('house-tab','🏠','House Task Rec','AI',null));
+}
+function toggleHouse(k){S.house[k]=!S.house[k];save('house');renderHouse();}
+
+// ============================================================
+// RENDER: INCOME
+// ============================================================
+function renderIncome(){
+  const total=S.income.reduce((a,e)=>a+(e.amt||0),0);
+  const mk=getMK(0);const mth=S.income.filter(e=>e.month===mk).reduce((a,e)=>a+(e.amt||0),0);
+  document.getElementById('content').innerHTML=`
+  <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px;padding-top:4px">
+    <div class="stat"><div class="stat-val" style="color:var(--green)">$${total.toLocaleString()}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">$${mth.toLocaleString()}</div><div class="stat-lbl">This Month</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--blue)">$${S.income.length?Math.round(total/S.income.length):0}</div><div class="stat-lbl">Avg/Job</div></div>
+  </div>
+  <div class="sec-lbl">Log Income</div>
+  <div class="card cp" style="margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fl" style="margin:0"><div class="fl-lbl">Amount ($)</div><input type="number" id="inc-amt" placeholder="150"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Source</div>
+        <select id="inc-src"><option value="Hauling">Hauling</option><option value="Lawn">Lawn Care</option><option value="Handyman">Handyman</option><option value="Other">Other</option></select>
+      </div>
+    </div>
+    <div class="fl"><div class="fl-lbl">Notes</div><input type="text" id="inc-notes" placeholder="What you did, where..."></div>
+    <button class="btn btn-full" onclick="addIncome()">Log Income</button>
+  </div>
+  <div class="sec-lbl">History</div>
+  <div class="card">
+    ${S.income.length===0?`<div style="padding:16px;font-size:13px;color:var(--muted);text-align:center">No income yet. Post a hauling or handyman listing on Facebook Marketplace today.</div>`
+    :[...S.income].reverse().map((e,ri)=>{const i=S.income.length-1-ri;return`<div class="row">
+      <div style="flex:1"><div class="row-title">${e.notes||e.source}</div><div class="row-sub">${e.date}</div></div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:6px;background:var(--green)18;color:var(--green)">${e.source}</div>
+      <div class="row-val" style="color:var(--green)">+$${e.amt}</div>
+      <button onclick="S.income.splice(${i},1);save('income');renderIncome()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
+    </div>`;}).join('')}
+  </div>
+  `;
+}
+function addIncome(){const amt=parseFloat(document.getElementById('inc-amt').value);if(!amt)return;S.income.push({amt,source:document.getElementById('inc-src').value,notes:document.getElementById('inc-notes').value,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),month:getMK(0)});save('income');renderIncome();}
+
+// ============================================================
+// RENDER: GOALS
+// ============================================================
+function renderGoals(){
+  const goals=[
+    {id:'efund',title:'Emergency Fund',target:500,color:'var(--green)',icon:'🛡️',note:'First target. Removes panic-mode decisions.'},
+    {id:'car',title:'Car Repair Fund',target:1000,color:'var(--gold)',icon:'🚗',note:'Transmission: $600–$1,200 installed.'},
+    {id:'savings',title:'3-Month Buffer',target:3000,color:'var(--blue)',icon:'💰',note:'Real security — after emergency fund.'},
+  ];
+  const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;
+  const wpct=Math.max(0,Math.min(100,Math.round((215-lw)/(215-185)*100)));
+  document.getElementById('content').innerHTML=`
+  <div class="sec-lbl" style="padding-top:4px">Savings Goals</div>
+  ${goals.map(g=>{const cur=S.goals[g.id]||0;const pct=Math.min(100,Math.round(cur/g.target*100));return`<div class="card cp" style="margin-bottom:10px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+      <div><div style="font-size:18px;margin-bottom:2px">${g.icon}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.title}</div><div style="font-size:11px;color:var(--muted);margin-top:1px">${g.note}</div></div>
+      <div style="text-align:right"><div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:${g.color}">$${cur}</div><div style="font-size:11px;color:var(--muted)">of $${g.target}</div></div>
+    </div>
+    <div class="prog" style="margin-bottom:5px"><div class="prog-fill" style="width:${pct}%;background:${g.color}"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:8px"><span>${pct}% done</span><span>$${g.target-cur} to go</span></div>
+    <div style="display:flex;gap:8px"><input type="number" id="gi-${g.id}" placeholder="Update amount ($)" style="flex:1;min-width:0"><button class="btn btn-sm" onclick="updateGoal('${g.id}')">Update</button></div>
+  </div>`;}).join('')}
+  <div class="sec-lbl">Weight Progress (215 → 185 lbs)</div>
+  <div class="card cp">
+    <div class="prog" style="margin-bottom:5px"><div class="prog-fill" style="width:${wpct}%;background:linear-gradient(90deg,var(--accent),var(--green))"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:10px"><span>215 lbs</span><span>${wpct}% there</span><span>185 lbs</span></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><input type="number" id="w-inp" placeholder="Current weight (lbs)" style="flex:1"><button class="btn btn-sm" onclick="logWeight()">Log</button></div>
+    ${S.weightLog.length?`<div>${[...S.weightLog].reverse().slice(0,5).map(e=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">${e.date}</span><span style="font-weight:600">${e.w} lbs</span><span style="font-family:'DM Mono',monospace;font-size:11px;color:${e.w<215?'var(--green)':'var(--muted)'}">${e.w<215?'−'+(215-e.w)+' lbs':'start'}</span></div>`).join('')}</div>`:'<div style="font-size:12px;color:var(--muted)">No entries yet</div>'}
+  </div>
+  `;
+}
+function updateGoal(id){const v=parseFloat(document.getElementById('gi-'+id).value);if(isNaN(v))return;S.goals[id]=v;save('goals');renderGoals();}
+function logWeight(){const v=parseFloat(document.getElementById('w-inp').value);if(!v)return;S.weightLog.push({w:v,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})});save('weightLog');renderGoals();}
+
+// ============================================================
+// RENDER: PROPERTY
+// ============================================================
+function renderProperty(){
+  const latest=S.propertyHistory.length?S.propertyHistory[S.propertyHistory.length-1]:null;
+  const val=latest?latest.value:150000;
+  const mortBal=(S.nwLiabilities.find(l=>l.name.toLowerCase().includes('mortgage'))||{val:138000}).val;
+  const equity=val-mortBal;
+  const netProceeds=val-mortBal-(val*.06)-(val*.02);
+  document.getElementById('content').innerHTML=`
+  <div class="g2" style="padding-top:4px;margin-bottom:12px">
+    <div class="card cp" style="text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;color:var(--green)">${fmtMoney(val)}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:3px">Est. Value</div></div>
+    <div class="card cp" style="text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;color:var(--blue)">${fmtMoney(equity)}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:3px">Equity</div></div>
+  </div>
+  <div class="card cp" style="margin-bottom:12px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Update Value</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input type="number" id="prop-val" placeholder="Current estimate (check Zillow)" style="flex:1">
+      <button class="btn btn-sm" onclick="logProp()">Update</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">Check Zillow monthly. Update after each house task batch — improvements add real value.</div>
+  </div>
+  <div class="card cp" style="border:1px solid rgba(0,204,122,.15);margin-bottom:12px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:10px">Estimated Sale Proceeds</div>
+    ${[['Sale Price',fmtMoney(val),'var(--text)'],['Agent Fee (6%)','-'+fmtMoney(Math.round(val*.06)),'var(--red)'],['Closing Costs (2%)','-'+fmtMoney(Math.round(val*.02)),'var(--red)'],['Mortgage Payoff','-'+fmtMoney(mortBal),'var(--red)'],['Net in Pocket',fmtMoney(Math.round(netProceeds)),'var(--green)']].map(([l,v2,c])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">${l}</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${c}">${v2}</span></div>`).join('')}
+  </div>
+  <div class="alert ao"><b>Every task you complete adds value.</b> Neutral paint + patched drywall = $3,000–$8,000 more at sale. Wednesday house blocks are building real equity with your own labor.</div>
+  ${S.propertyHistory.length>1?`<div class="sec-lbl">Value History</div><div class="card">${[...S.propertyHistory].reverse().slice(0,6).map((h,i,arr)=>{const prev=arr[i+1];const diff=prev?h.value-prev.value:0;return`<div class="row"><div style="flex:1"><div class="row-title">${h.date}</div></div>${diff!==0?`<div style="font-family:'DM Mono',monospace;font-size:12px;color:${diff>0?'var(--green)':'var(--red)'}">${diff>0?'+':''}${fmtMoney(diff)}</div>`:''}<div class="row-val" style="color:var(--green)">${fmtMoney(h.value)}</div></div>`;}).join('')}</div>`:''}
+  `;
+}
+function logProp(){const v=parseFloat(document.getElementById('prop-val').value);if(!v)return;S.propertyHistory.push({date:new Date().toLocaleDateString('en-US',{month:'short',year:'numeric'}),value:v});save('propertyHistory');renderProperty();}
+
+// ============================================================
+// RENDER: WEEKLY PLAN
+// ============================================================
+function renderWeekly(){
+  const wk=getWk(S.week2);const plan=S.weeklyPlans[wk]||{intentions:[],theme:'',reflection:'',done:{}};
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--soft)">${fmtWk(wk)}</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="S.week2--;save('week2');renderWeekly()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.week2=0;save('week2');renderWeekly()">Now</button>
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">Intentions</div>
+    <div class="card">
+      ${plan.intentions.length===0?`<div style="padding:14px;font-size:13px;color:var(--muted)">No intentions set yet.</div>`:plan.intentions.map((int,i)=>{const done=plan.done[i];return`<div class="row" onclick="toggleInt('${wk}',${i})">
+        <div class="chk ${done?'done':''}">${done?'✓':''}</div>
+        <div style="flex:1;${done?'text-decoration:line-through;color:var(--muted)':''}"><div class="row-title">${int}</div></div>
+        <button onclick="event.stopPropagation();S.weeklyPlans['${wk}'].intentions.splice(${i},1);save('weeklyPlans');renderWeekly()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 6px">×</button>
+      </div>`;}).join('')}
+      <div style="padding:10px 14px;display:flex;gap:8px">
+        <input type="text" id="wi-new" placeholder="Add intention..." style="flex:1">
+        <button class="btn btn-sm" onclick="addInt()">Add</button>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="card cp">
+      <div class="fl"><div class="fl-lbl">Weekly Theme</div><input type="text" id="wi-theme" value="${plan.theme||''}" placeholder="e.g. Consistency, Progress..."></div>
+      <div class="fl"><div class="fl-lbl">End of Week Reflection</div><textarea id="wi-ref" rows="3" placeholder="How did it go? What surprised you?">${plan.reflection||''}</textarea></div>
+      <button class="btn btn-full" onclick="saveWeekly()">Save</button>
+    </div>
+  </div>
+  `;
+}
+function addInt(){const inp=document.getElementById('wi-new');const txt=inp.value.trim();if(!txt)return;const wk=getWk(S.week2);if(!S.weeklyPlans[wk])S.weeklyPlans[wk]={intentions:[],theme:'',reflection:'',done:{}};S.weeklyPlans[wk].intentions.push(txt);save('weeklyPlans');inp.value='';renderWeekly();}
+function toggleInt(wk,i){if(!S.weeklyPlans[wk])return;S.weeklyPlans[wk].done[i]=!S.weeklyPlans[wk].done[i];save('weeklyPlans');renderWeekly();}
+function saveWeekly(){const wk=getWk(S.week2);if(!S.weeklyPlans[wk])S.weeklyPlans[wk]={intentions:[],theme:'',reflection:'',done:{}};S.weeklyPlans[wk].theme=document.getElementById('wi-theme').value;S.weeklyPlans[wk].reflection=document.getElementById('wi-ref').value;save('weeklyPlans');renderWeekly();}
+
+// ============================================================
+// RENDER: ACTION PLAN
+// ============================================================
+function renderPlan(){
+  document.getElementById('content').innerHTML=`<div style="padding-top:4px">`+PHASES.map(p=>`
+  <div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:${p.col};opacity:.3;line-height:1">${p.n}</div>
+      <div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;text-transform:uppercase">${p.title}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${p.time}</div></div>
+    </div>
+    <div class="card">
+      ${p.acts.map((a,i)=>{const k=`${p.n}_${i}`;const done=S.plan[k];return`<div class="row" onclick="toggleAct('${k}')">
+        <div class="chk ${done?'done':''}">${done?'✓':''}</div>
+        <div style="flex:1;${done?'text-decoration:line-through;color:var(--muted)':''}">
+          <div class="row-title">${a.t}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:${a.imp==='highest'?'var(--red)':a.imp==='high'?'var(--accent)':'var(--gold)'};margin-top:1px;text-transform:uppercase;letter-spacing:1px">${a.imp}</div>
+        </div>
+      </div>`;}).join('')}
+    </div>
+  </div>`).join('')+'</div>';
+}
+function toggleAct(k){S.plan[k]=!S.plan[k];save('plan');renderPlan();}
+
+// ============================================================
+// RENDER: MONTHLY REVIEW
+// ============================================================
+function renderReview(){
+  const mk=getMK(S.reviewMonth);const r=S.reviews[mk]||{};
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase">${getML(S.reviewMonth)}</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sm btn-ghost" onclick="S.reviewMonth--;save('reviewMonth');renderReview()">←</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.reviewMonth=0;save('reviewMonth');renderReview()">Now</button>
+      <button class="btn btn-sm btn-ghost" onclick="S.reviewMonth++;save('reviewMonth');renderReview()">→</button>
+    </div>
+  </div>
+  <div class="card cp" style="margin-top:10px">
+    <div class="fl"><div class="fl-lbl" style="color:var(--green)">✓ What went well?</div><textarea id="r-well" placeholder="Habits kept, progress made, wins...">${r.well||''}</textarea></div>
+    <div class="fl"><div class="fl-lbl" style="color:var(--red)">✗ What didn't?</div><textarea id="r-bad" placeholder="What fell apart, what you avoided...">${r.bad||''}</textarea></div>
+    <div class="fl"><div class="fl-lbl" style="color:var(--gold)">→ One change next month</div><textarea id="r-change" rows="2" placeholder="Specific and actionable...">${r.change||''}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="fl" style="margin:0"><div class="fl-lbl">Weight</div><input type="number" id="r-w" value="${r.weight||''}" placeholder="215"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Saved ($)</div><input type="number" id="r-s" value="${r.saved||''}" placeholder="0"></div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Mood (1–10)</div><input type="range" id="r-m" min="1" max="10" value="${r.mood||5}"></div>
+    </div>
+    <button class="btn btn-full" onclick="saveReview()">Save Month</button>
+  </div>
+  ${Object.entries(S.reviews).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,4).map(([k,rv])=>`<div class="card cp" style="margin-top:10px">
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-bottom:6px">${k}</div>
+    ${rv.well?`<div style="font-size:12px;margin-bottom:4px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--green);text-transform:uppercase">Well: </span>${rv.well}</div>`:''}
+    ${rv.bad?`<div style="font-size:12px;margin-bottom:4px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--red);text-transform:uppercase">Didn't: </span>${rv.bad}</div>`:''}
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+      ${rv.weight?`<div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase">Weight</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--green)">${rv.weight} lbs</div></div>`:''}
+      ${rv.saved?`<div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase">Saved</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--blue)">$${rv.saved}</div></div>`:''}
+      ${rv.mood?`<div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase">Mood</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--purple)">${rv.mood}/10</div></div>`:''}
+    </div>
+  </div>`).join('')}
+  `;
+}
+function saveReview(){const mk=getMK(S.reviewMonth);S.reviews[mk]={well:document.getElementById('r-well').value,bad:document.getElementById('r-bad').value,change:document.getElementById('r-change').value,weight:document.getElementById('r-w').value,saved:document.getElementById('r-s').value,mood:document.getElementById('r-m').value};save('reviews');renderReview();}
+
+// ============================================================
+// RENDER: NOTES
+// ============================================================
+function renderNotes(){
+  document.getElementById('content').innerHTML=`
+  <div class="card cp" style="margin-bottom:10px;padding-top:4px">
+    <div class="fl"><div class="fl-lbl">New Note</div><textarea id="new-note" placeholder="Realizations, updates, wins, setbacks..." rows="4"></textarea></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-full" onclick="addNote()">Add Note</button></div>
+  </div>
+  ${S.notes.length===0?`<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">No notes yet.</div>`
+  :[...S.notes].reverse().map((n,ri)=>{const i=S.notes.length-1-ri;return`<div class="card cp" style="margin-bottom:8px">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:5px">${n.date}</div>
+    <div style="font-size:13px;line-height:1.6;white-space:pre-wrap">${n.text}</div>
+    <div style="margin-top:8px"><button onclick="delNote(${i})" style="background:none;border:1px solid var(--border);color:var(--muted);cursor:pointer;padding:3px 10px;border-radius:6px;font-size:11px">Delete</button></div>
+  </div>`;}).join('')}
+  `;
+}
+function addNote(){const t=document.getElementById('new-note').value.trim();if(!t)return;S.notes.push({text:t,date:new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})});save('notes');renderNotes();}
+function delNote(i){if(confirm('Delete this note?')){S.notes.splice(i,1);save('notes');renderNotes();}}
+
+// ============================================================
+// RENDER: VISION
+// ============================================================
+function renderVision(){
+  document.getElementById('content').innerHTML=`
+  <div class="card cp" style="border:1px solid rgba(0,204,122,.15);margin-bottom:12px;padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:10px">Who You're Becoming</div>
+    ${IDENTITY.map(s=>`<div style="display:flex;gap:10px;margin-bottom:9px;font-size:13px;line-height:1.5;align-items:flex-start"><div style="width:5px;height:5px;border-radius:50%;background:var(--green);margin-top:7px;flex-shrink:0"></div><div>${s}</div></div>`).join('')}
+  </div>
+  <div class="g2">
+    <div class="card cp"><div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px">Right Now</div>
+      ${['$19–21/hr, ~$0 surplus','$820/mo on food + alcohol','215 lbs, inactive','Poor sleep, drinking daily','House unfinished, $836/mo'].map(s=>`<div style="font-size:12px;color:var(--muted);margin-bottom:4px;display:flex;gap:6px"><span style="color:var(--red)">→</span>${s}</div>`).join('')}
+    </div>
+    <div class="card cp"><div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:8px">Sept 2027</div>
+      ${['$25/hr+ or own business','$500–$1,500/mo surplus','185 lbs, training 4×/wk','7–8 hrs sleep, clear head','House sold, mortgage gone'].map(s=>`<div style="font-size:12px;margin-bottom:4px;display:flex;gap:6px"><span style="color:var(--green)">→</span>${s}</div>`).join('')}
+    </div>
+  </div>
+  <div class="alert ag" style="margin-top:12px"><b>What you said you want:</b> Build or operate something. Invest toward freedom. Have the option of choice. Time for friends and family. Not work just to pay bills.<br><br>Your dad worked hard his whole life. <b>You can build a life where the work builds something genuinely yours.</b></div>
+  `;
+}
+
+// ============================================================
+// RENDER: BACKUP
+// ============================================================
+function renderBackup(){
+  document.getElementById('content').innerHTML=`
+  <div class="alert ag" style="padding-top:4px"><b>Export monthly.</b> Data lives in this browser. Clear browser data without a backup = data lost.</div>
+  <div class="g2" style="margin-bottom:12px">
+    <div class="card cp">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:8px">⬇ Export</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Downloads blueprint-backup.json to your phone/computer.</div>
+      <button class="btn btn-green btn-full" onclick="exportData()">Download Backup</button>
+    </div>
+    <div class="card cp">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase;color:var(--accent);margin-bottom:8px">⬆ Import</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px"><b style="color:var(--red)">Overwrites</b> current data.</div>
+      <input type="file" id="import-file" accept=".json" style="margin-bottom:8px;font-size:12px">
+      <button class="btn btn-red btn-full" onclick="importData()">Import Backup</button>
+    </div>
+  </div>
+  <div class="sec-lbl">Data Summary</div>
+  <div class="card">
+    ${[['Habit entries',Object.keys(S.habits).length],['Sleep nights',Object.keys(S.sleep).length],['Daily check-ins',Object.keys(S.checkins).length],['Calorie days',Object.keys(S.calories).length],['Income entries',S.income.length],['Notes',S.notes.length],['Net worth snapshots',S.nwHistory.length],['Credit score entries',S.creditScore.length]].map(([l,v])=>`<div class="row"><div style="flex:1;font-size:13px;color:var(--muted)">${l}</div><div style="font-family:'DM Mono',monospace;font-size:13px;color:${v>0?'var(--green)':'var(--muted)'}">${v}</div></div>`).join('')}
+  </div>
+  `;
+}
+function renderNotif(){
+  const perm=Notification.permission;
+  const permColor=perm==="granted"?"var(--green)":perm==="denied"?"var(--red)":"var(--gold)";
+  const permLabel=perm==="granted"?"✓ Notifications Enabled":perm==="denied"?"✗ Blocked — fix in Settings":"Not yet enabled";
+  document.getElementById("content").innerHTML=`
+  <div style="padding-top:4px">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">Notifications</div>
+    <div style="font-family:DM Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Scheduled reminders that keep you on track</div>
+  </div>
+  <div class="card cp" style="margin-bottom:12px">
+    <div style="font-family:DM Mono,monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Current Status</div>
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:800;margin-bottom:10px">${permLabel}</div>
+    ${perm==="granted"
+      ?`<div class="ag"><b>On.</b> Daily reminders are set.</div>`
+      :perm==="denied"
+      ?`<div class="ar"><b>Blocked.</b> Go to iPhone Settings → Safari → Blueprint → Notifications → Allow.</div>`
+      :`<button class="btn btn-full" onclick="enableNotifications()" style="margin-bottom:10px">Enable Notifications</button><div class="ab">Tap above — iPhone will ask to allow notifications. Tap Allow.</div>`
+    }
+  </div>
+  <div class="sec-lbl">Scheduled Reminders</div>
+  <div class="card">
+    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0"></div><div style="flex:1"><div class="row-title">6:00 AM Daily</div><div class="row-sub">Morning check-in — set your priority</div></div></div>
+    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div><div style="flex:1"><div class="row-title">9:30 PM Daily</div><div class="row-sub">Evening close — log your win</div></div></div>
+    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></div><div style="flex:1"><div class="row-title">Wednesday 8:45 AM</div><div class="row-sub">House day — block starts at 9 AM</div></div></div>
+    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div><div style="flex:1"><div class="row-title">Sunday 7:00 PM</div><div class="row-sub">Weekly planning — set intentions</div></div></div>
+  </div>
+  <div class="section"><div class="sec-lbl">Test</div><div class="card cp"><div style="font-size:13px;color:var(--muted);margin-bottom:10px">Send a test notification right now.</div><button class="btn btn-full btn-ghost" onclick="testNotification()">Send Test Notification</button></div></div>
+  `;
+}
+async function enableNotifications(){
+  if(!("Notification" in window)){showToast("Not supported","var(--red)");return;}
+  try{
+    const p=await Notification.requestPermission();
+    if(p==="granted"){showToast("✓ Notifications enabled","var(--green)");new Notification("Blueprint",{body:"Notifications are on. Daily reminders set.",icon:"/life-blueprint/icon-192.png"});}
+    else if(p==="denied"){showToast("Blocked — enable in iPhone Settings","var(--red)");}
+    renderNotif();
+  }catch(e){showToast("Open from home screen icon","var(--red)");}
+}
+function testNotification(){
+  if(Notification.permission!=="granted"){showToast("Enable notifications first","var(--red)");return;}
+  new Notification("Blueprint Test",{body:"Working! Daily reminders are active.",icon:"/life-blueprint/icon-192.png"});
+  showToast("✓ Test sent","var(--green)");
+}
+function exportData(){const data={};Object.keys(localStorage).filter(k=>k.startsWith('bp_')).forEach(k=>{try{data[k]=JSON.parse(localStorage.getItem(k));}catch{data[k]=localStorage.getItem(k);}});const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`blueprint-backup-${new Date().toISOString().split('T')[0]}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✓ BACKUP DOWNLOADED','var(--green)');}
+function importData(){const file=document.getElementById('import-file').files[0];if(!file)return;if(!confirm('Overwrite all current data?'))return;const reader=new FileReader();reader.onload=e=>{try{const data=JSON.parse(e.target.result);Object.entries(data).forEach(([k,v])=>localStorage.setItem(k,JSON.stringify(v)));showToast('✓ DATA RESTORED','var(--green)');setTimeout(()=>location.reload(),1000);}catch{alert('Invalid backup file.');}};reader.readAsText(file);}
+
+// ============================================================
+// AI ADVISOR
+// ============================================================
+let advisorHistory=[];
+function openAdvisor(){
+  document.getElementById('advisor-wrap').classList.add('open');
+  const msgs=document.getElementById('advisor-msgs');
+  if(msgs.children.length===0){
+    const scores=computeScores();const eff=computeEff();const dk=getDK(0);const ci=S.checkins[dk]||{};
+    const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);
+    const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;
+    let intro='I\'ve reviewed your data. Here\'s where things stand:\n\n';
+    if(scores.overall!==null)intro+=`• Life score: ${scores.overall}/100\n`;
+    intro+=`• Today's efficiency: ${eff.total}/100\n`;
+    if(scores.habitScore!==null)intro+=`• Habit score this week: ${scores.habitScore}%\n`;
+    intro+=`• House progress: ${scores.hsDone}/${scores.hsTotal} tasks (${scores.houseScore||0}%)\n`;
+    if(latestCredit)intro+=`• Credit score: ${latestCredit} (${creditLabel(latestCredit)})\n`;
+    intro+=`• Net worth: ${fmtMoney(nw)}\n• Side income total: $${scores.totalIncome}\n\n`;
+    intro+=scores.overall===null?'You haven\'t logged much yet. Start with today\'s check-in. What do you want to focus on?':scores.overall<50?'Things need attention. What\'s getting in the way?':'Good momentum. Ask me anything — I have your full financial picture and can get specific.';
+    addMsg(intro,'ai');
+  }
+}
+function closeAdvisor(){document.getElementById('advisor-wrap').classList.remove('open');}
+function addMsg(text,role){const msgs=document.getElementById('advisor-msgs');const div=document.createElement('div');div.className=`msg ${role}`;div.textContent=text;msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;}
+function addTyping(){const msgs=document.getElementById('advisor-msgs');const div=document.createElement('div');div.className='msg typing pulse';div.id='typing';div.textContent='...';msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;}
+function removeTyping(){const el=document.getElementById('typing');if(el)el.remove();}
+
+async function sendMsg(){
+  const input=document.getElementById('advisor-input');const text=input.value.trim();if(!text)return;
+  addMsg(text,'user');advisorHistory.push({role:'user',content:text});input.value='';
+  addTyping();
+  if(CFG.ANTHROPIC_KEY.includes('PASTE')){removeTyping();addMsg('Add your Anthropic API key to the CONFIG section to enable the advisor. See SETUP_GUIDE.txt.','ai');return;}
+  const scores=computeScores();const eff=computeEff();const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;const dk=getDK(0);const ci=S.checkins[dk]||{};
+  const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const systemPrompt=`You are a personal advisor embedded in a life and finance tracking PWA for a specific user. You have their real data and speak directly, honestly, and practically. No generic advice — everything references their specific numbers.
+
+USER PROFILE:
+- Age 23, Birmingham AL. Coca-Cola merchandiser Fri–Tue, ~$3,560/mo total income.
+- Owns home ($139,500, 6%, 10-yr balloon due Sept 2034). Paid-off truck, failing car.
+- Goal job: Tyler Union (+$1,154/mo). Currently ~$0 surplus.
+- Key drains: fast food (~$420/mo), alcohol (~$400/mo).
+
+CURRENT DATA:
+- Life score: ${scores.overall!==null?scores.overall+'/100':'no data'}
+- Today's efficiency: ${eff.total}/100 (priority:${eff.priority.done?'✓':'○'} schedule:${eff.schedule.done?'✓':'○'} calories:${eff.calories.done?'✓':'○'} exercise:${eff.exercise.done?'✓':'○'})
+- Habits this week: ${scores.habitScore!==null?scores.habitScore+'%':'not logged'} (${scores.hDone}/${scores.hLogged} days)
+- Sleep score: ${scores.sleepScore!==null?scores.sleepScore+'/100':'not logged'}
+- House: ${scores.hsDone}/${scores.hsTotal} tasks (${scores.houseScore||0}%)
+- Budget: $${tIn} in, $${tOut} out, ${tIn-tOut>=0?'+':''}$${tIn-tOut} surplus
+- Net worth: ${fmtMoney(nw)}
+- Credit score: ${latestCredit?latestCredit+' ('+creditLabel(latestCredit)+')':'not logged'}
+- Weight: ${lw} lbs (goal: 185 lbs)
+- Side income total: $${scores.totalIncome}
+- Today (${dayNames[dow]}): priority "${ci.priority||'not set'}", energy ${ci.energy||'not logged'}/10
+
+Style: Direct, honest, specific. Short unless they ask for detail. Reference their actual numbers. Prioritize highest-leverage actions given where they actually are.`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CFG.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
+    removeTyping();
+    if(!res.ok){addMsg('Connection error. Check your API key in the CONFIG section.','ai');return;}
+    const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
+    advisorHistory.push({role:'assistant',content:reply});addMsg(reply,'ai');
+  }catch{removeTyping();addMsg('Unable to connect. Check your internet connection.','ai');}
+}
+
+// ============================================================
+// NAV
+// ============================================================
+const GROUPS={
+  today:[{id:'dashboard',label:'Dashboard'},{id:'checkin',label:'Check-In'},{id:'schedule',label:'Schedule'}],
+  body:[{id:'habits',label:'Habits'},{id:'calories',label:'Calories'},{id:'sleep',label:'Sleep'},{id:'workouts',label:'Workouts'}],
+  finance:[{id:'budget',label:'Budget'},{id:'credit',label:'Credit'},{id:'networth',label:'Net Worth'},{id:'retirement',label:'Retirement'},{id:'taxes',label:'Side $ Tax'},{id:'property',label:'Property'}],
+  build:[{id:'house',label:'House'},{id:'income',label:'Income'},{id:'goals',label:'Goals'},{id:'weekly',label:'Weekly Plan'},{id:'plan',label:'Action Plan'}],
+  reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'},{id:'notif',label:'Notifications'}],
+};
+
+let curGroup='today';let curTab='dashboard';
+
+function navGroup(group){
+  curGroup=group;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const nb=document.getElementById('nb-'+group);if(nb)nb.classList.add('active');
+  const subNav=document.getElementById('sub-nav');const tabs=GROUPS[group];
+  if(subNav&&tabs){subNav.innerHTML=tabs.map(t=>`<button class="sub-btn ${curTab===t.id?'active':''}" onclick="show('${t.id}')">${t.label}</button>`).join('');subNav.classList.add('open');}
+  const inGroup=tabs&&tabs.some(t=>t.id===curTab);
+  if(!inGroup&&tabs)show(tabs[0].id);
+}
+
+function show(tabId){
+  curTab=tabId;
+  document.querySelectorAll('.sub-btn').forEach(b=>{b.classList.toggle('active',b.textContent.trim()===(GROUPS[curGroup]?.find(t=>t.id===tabId)?.label||''));});
+  const renders={
+    dashboard:renderDashboard,checkin:renderCheckin,schedule:renderSchedule,
+    habits:renderHabits,calories:renderCalories,sleep:renderSleep,workouts:renderWorkouts,
+    budget:renderBudget,credit:renderCredit,networth:renderNetWorth,retirement:renderRetirement,taxes:renderTaxes,property:renderProperty,
+    house:renderHouse,income:renderIncome,goals:renderGoals,weekly:renderWeekly,plan:renderPlan,
+    review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,
+  };
+  if(renders[tabId])renders[tabId]();
+  document.getElementById('main').scrollTop=0;
+  if(history.replaceState)history.replaceState(null,'','/?tab='+tabId);
+}
+function renderCurrent(){show(curTab);}
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function openOverlay(id){document.getElementById(id).classList.add('open');}
+function closeOverlay(id){document.getElementById(id).classList.remove('open');activeSleepKey=null;}
+
+// ============================================================
+// SERVICE WORKER + NOTIFICATIONS
+// ============================================================
+async function initSW(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    const reg=await navigator.serviceWorker.register('/sw.js');
+    navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='NAVIGATE')show(e.data.tab);});
+  }catch(e){console.log('SW failed:',e);}
+}
+async function initNotifications(){
+  if(!localStorage.getItem('bp_notif_asked')&&Notification.permission==='default'){
+    localStorage.setItem('bp_notif_asked','1');
+    setTimeout(async()=>{const p=await Notification.requestPermission();if(p==='granted')showToast('✓ Notifications on','var(--blue)');},5000);
+  }
+  if(Notification.permission==='granted'){
+    const h=new Date().getHours();const dk=getDK(0);
+    if(h>=6&&h<10&&!localStorage.getItem('bp_notif_morning_'+dk)){
+      const ci=S.checkins[dk]||{};
+      if(!ci.priority){new Notification('Good morning.',{body:'Set your priority for today. Takes 30 seconds.',icon:'/icon-192.png'});localStorage.setItem('bp_notif_morning_'+dk,'1');}
+    }
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded',async()=>{
+  await initSW();
+  const urlParams=new URLSearchParams(window.location.search);const tabParam=urlParams.get('tab');
+  navGroup('today');
+  if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
+  updateTopbar();saveEffHistory();
+  setTimeout(()=>cloudSync(),2000);
+  setTimeout(()=>initNotifications(),3000);
+  setTimeout(()=>runMorningRecs(),4000);
+});
+</script>
+</body>
+</html>
