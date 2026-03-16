@@ -856,7 +856,8 @@ async function getRecommendation(type,contextData){
   const dk=getDK(0);const cacheKey=`${type}_${dk}`;
   const cached=S.recCache[cacheKey];
   if(cached&&(Date.now()-cached.ts)<REC_CACHE_TTL)return cached.data;
-  if(CFG.ANTHROPIC_KEY.includes('PASTE'))return null;
+  const activeKey=localStorage.getItem('bp_user_anthropic_key')||CFG.ANTHROPIC_KEY;
+  if(!activeKey||activeKey.includes('PASTE'))return null;
 
   const scores=computeScores();
   const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
@@ -979,7 +980,7 @@ Respond in EXACT JSON:
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CFG.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+      headers:{'Content-Type':'application/json','x-api-key':activeKey,'anthropic-version':'2023-06-01'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',max_tokens:600,
         messages:[{role:'user',content:PROMPTS[type]}],
@@ -2307,7 +2308,8 @@ async function sendMsg(){
   const input=document.getElementById('advisor-input');const text=input.value.trim();if(!text)return;
   addMsg(text,'user');advisorHistory.push({role:'user',content:text});input.value='';
   addTyping();
-  if(CFG.ANTHROPIC_KEY.includes('PASTE')){removeTyping();addMsg('Add your Anthropic API key to the CONFIG section to enable the advisor. See SETUP_GUIDE.txt.','ai');return;}
+  const activeAdvisorKey=localStorage.getItem('bp_user_anthropic_key')||CFG.ANTHROPIC_KEY;
+  if(!activeAdvisorKey||activeAdvisorKey.includes('PASTE')){removeTyping();addMsg('Go to Reflect → Setup and enter your Anthropic API key to enable the advisor.','ai');return;}
   const scores=computeScores();const eff=computeEff();const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;const dk=getDK(0);const ci=S.checkins[dk]||{};
   const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const systemPrompt=`You are a personal advisor embedded in a life and finance tracking PWA for a specific user. You have their real data and speak directly, honestly, and practically. No generic advice — everything references their specific numbers.
@@ -2334,7 +2336,7 @@ CURRENT DATA:
 Style: Direct, honest, specific. Short unless they ask for detail. Reference their actual numbers. Prioritize highest-leverage actions given where they actually are.`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CFG.ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':activeAdvisorKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
     removeTyping();
     if(!res.ok){addMsg('Connection error. Check your API key in the CONFIG section.','ai');return;}
     const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
