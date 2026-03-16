@@ -1026,12 +1026,12 @@ async function loadRec(type,icon,title,tag,contextData){
   if(!bodyEl)return;
   if(!data){
     bodyEl.className='rec-body';
-    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Go to <b style="color:var(--text)">Reflect → Setup</b> and enter your Anthropic API key.</div>`;
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Go to <b style="color:var(--text)">⚙️ Settings → Setup</b> and enter your Anthropic API key.</div>`;
     return;
   }
   if(data._error){
     bodyEl.className='rec-body';
-    const msg=data._status===401?'Invalid API key — go to Reflect → Setup and re-enter your Anthropic key':
+    const msg=data._status===401?'Invalid API key — go to ⚙️ Settings → Setup and re-enter your Anthropic key':
               data._status===429?'Rate limit hit — wait a minute and tap Refresh':
               data._status===400?'API error 400 — your key may be invalid or out of credits':
               `Error ${data._status}: ${data._message}`;
@@ -1580,6 +1580,66 @@ function saveSleep(){
 // ============================================================
 // RENDER: WORKOUTS
 // ============================================================
+function renderMealPlan(){
+  const meals=[
+    {time:'6:35 AM',name:'Breakfast — 4 Eggs + Oats + Banana',cal:450,p:35,c:48,f:12,why:'Protein + complex carb = stable energy until lunch. No crash. Prep 5 min the night before.',cost:'~$1.80'},
+    {time:'12:00 PM',name:'Lunch — Chicken Thigh + Rice + Veg',cal:550,p:50,c:52,f:10,why:'Lean protein + carbs refuel physical labor without spiking blood sugar.',cost:'~$2.50'},
+    {time:'3:00 PM',name:'Snack — Greek Yogurt or PB + Apple',cal:200,p:20,c:22,f:6,why:'Controls hunger so dinner is not overeaten. Protein prevents muscle breakdown.',cost:'~$0.80'},
+    {time:'7:30 PM',name:'Dinner — Ground Beef + Sweet Potato',cal:550,p:45,c:48,f:14,why:'Last meal. Sufficient protein for overnight muscle repair.',cost:'~$3.00'},
+  ];
+  const swaps=[
+    {from:"McDonald's / fast food meal",to:'4 eggs + oats at home',calSaved:'400–600',moneySaved:'$7–11'},
+    {from:'Soda (20oz)',to:'Water or black coffee',calSaved:'240',moneySaved:'$2–3'},
+    {from:'Bar night (8 beers)',to:'1 night $30 cap, 2 drinks max',calSaved:'900–1,200',moneySaved:'$50–80'},
+    {from:'Ranch dressing (2 tbsp)',to:'Hot sauce or mustard',calSaved:'145',moneySaved:'$0'},
+    {from:'Fried chicken (fast food)',to:'Baked chicken thighs at home',calSaved:'150–300',moneySaved:'$5–8'},
+  ];
+  document.getElementById('content').innerHTML=`
+  <div class="alert ag"><b>This plan = ~1,750 cal, 150g protein, ~$8/day</b> vs $25–40 fast food. You will lose weight eating this without ever formally counting calories.</div>
+  <div class="section">
+    <div class="sec-lbl">Daily Meal Plan</div>
+    <div class="card">
+      ${meals.map(m=>`<div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${m.time}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">${m.cost}</div>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:3px">${m.name}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:3px">${m.cal} cal · ${m.p}g P · ${m.c}g C · ${m.f}g F</div>
+        <div style="font-size:11px;color:var(--teal);font-style:italic">${m.why}</div>
+      </div>`).join('')}
+      <div style="padding:10px 14px;background:var(--dim);display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:var(--muted)">Daily total</span>
+        <span style="font-family:'DM Mono',monospace;color:var(--green)">1,750 cal · 150g protein · ~$8.10/day</span>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">Weekly Groceries (~$52)</div>
+    <div class="card cp" style="font-size:13px;line-height:2.2;color:var(--muted)">
+      🥚 <b style="color:var(--text)">2 dozen eggs</b> ~$4 &nbsp;·&nbsp; 🍗 <b style="color:var(--text)">5 lbs chicken thighs</b> ~$7.50<br>
+      🥩 <b style="color:var(--text)">2 lbs ground beef</b> ~$6 &nbsp;·&nbsp; 🍚 <b style="color:var(--text)">5 lb rice</b> ~$3.50<br>
+      🍠 <b style="color:var(--text)">Sweet potatoes (5 lb)</b> ~$4 &nbsp;·&nbsp; 🌾 <b style="color:var(--text)">Oats (large)</b> ~$4<br>
+      🍌 <b style="color:var(--text)">Bananas + apples</b> ~$5 &nbsp;·&nbsp; 🥜 <b style="color:var(--text)">Peanut butter</b> ~$5<br>
+      🥦 <b style="color:var(--text)">Frozen veg (2 bags)</b> ~$6 &nbsp;·&nbsp; 🧸 <b style="color:var(--text)">Greek yogurt (4pk)</b> ~$6
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">Food Swaps — Instead of → Choose</div>
+    <div class="card">
+      ${swaps.map(s=>`<div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--muted);text-decoration:line-through;margin-bottom:3px">${s.from}</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">→ ${s.to}</div>
+        <div style="display:flex;gap:12px">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">−${s.calSaved} cal</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--blue)">save ${s.moneySaved}/meal</div>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+  `;
+}
+
 function renderWorkouts(){
   const plans=[
     {title:'Full Body A',sub:'Sat + Wed · ~35 min · Bodyweight',bc:'var(--green)',badge:'Phase 1+',ex:[
@@ -2359,10 +2419,13 @@ function renderSettings(){
   const hasAK=savedAK.startsWith('sk-ant');
   const hasSU=savedSU.includes('supabase.co');
   const hasSK=savedSK.startsWith('eyJ');
+  // Debug — show exactly what's in storage
+  const debugInfo=`localStorage key: "${localStorage.getItem('bp_user_anthropic_key')||'null'}" | CFG key: "${CFG.ANTHROPIC_KEY.substring(0,20)}..."`;
   document.getElementById('content').innerHTML=`
   <div style="padding-top:4px">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">App Setup</div>
-    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Enter your API keys once — saved on this device only, never uploaded anywhere</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px">Enter your API keys once — saved on this device only</div>
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--gold);background:rgba(240,160,0,.08);border:1px solid rgba(240,160,0,.2);border-radius:6px;padding:6px 10px;margin-bottom:10px;word-break:break-all">${debugInfo}</div>
   </div>
   <div class="card" style="margin-bottom:14px">
     <div class="row">
@@ -2517,7 +2580,7 @@ async function sendMsg(){
   addMsg(text,'user');advisorHistory.push({role:'user',content:text});input.value='';
   addTyping();
   const activeAdvisorKey=localStorage.getItem('bp_user_anthropic_key')||CFG.ANTHROPIC_KEY;
-  if(!activeAdvisorKey||activeAdvisorKey.includes('PASTE')){removeTyping();addMsg('Go to Reflect → Setup and enter your Anthropic API key to enable the advisor.','ai');return;}
+  if(!activeAdvisorKey||activeAdvisorKey.includes('PASTE')){removeTyping();addMsg('Go to ⚙️ Settings → Setup and enter your Anthropic API key to enable the advisor.','ai');return;}
   const scores=computeScores();const eff=computeEff();const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;const dk=getDK(0);const ci=S.checkins[dk]||{};
   const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const systemPrompt=`You are a personal advisor embedded in a life and finance tracking PWA for a specific user. You have their real data and speak directly, honestly, and practically. No generic advice — everything references their specific numbers.
@@ -2546,7 +2609,7 @@ Style: Direct, honest, specific. Short unless they ask for detail. Reference the
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':activeAdvisorKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
     removeTyping();
-    if(!res.ok){addMsg('Connection error. Check your API key in the CONFIG section.','ai');return;}
+    if(!res.ok){addMsg('Connection error — check your Anthropic key in ⚙️ Settings → Setup.','ai');return;}
     const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
     advisorHistory.push({role:'assistant',content:reply});addMsg(reply,'ai');
   }catch{removeTyping();addMsg('Unable to connect. Check your internet connection.','ai');}
@@ -2557,7 +2620,7 @@ Style: Direct, honest, specific. Short unless they ask for detail. Reference the
 // ============================================================
 const GROUPS={
   today:[{id:'dashboard',label:'Dashboard'},{id:'checkin',label:'Check-In'},{id:'schedule',label:'Schedule'}],
-  body:[{id:'habits',label:'Habits'},{id:'calories',label:'Calories'},{id:'sleep',label:'Sleep'},{id:'workouts',label:'Workouts'}],
+  body:[{id:'habits',label:'Habits'},{id:'calories',label:'Calories'},{id:'mealplan',label:'Meal Plan'},{id:'sleep',label:'Sleep'},{id:'workouts',label:'Workouts'}],
   finance:[{id:'budget',label:'Budget'},{id:'credit',label:'Credit'},{id:'networth',label:'Net Worth'},{id:'retirement',label:'Retirement'},{id:'taxes',label:'Side $ Tax'},{id:'property',label:'Property'}],
   build:[{id:'house',label:'House'},{id:'income',label:'Income'},{id:'goals',label:'Goals'},{id:'weekly',label:'Weekly Plan'},{id:'plan',label:'Action Plan'}],
   reflect:[{id:'review',label:'Monthly'},{id:'notes',label:'Notes'},{id:'vision',label:'Vision'},{id:'backup',label:'Backup'}],
@@ -2581,7 +2644,7 @@ function show(tabId){
   document.querySelectorAll('.sub-btn').forEach(b=>{b.classList.toggle('active',b.textContent.trim()===(GROUPS[curGroup]?.find(t=>t.id===tabId)?.label||''));});
   const renders={
     dashboard:renderDashboard,checkin:renderCheckin,schedule:renderSchedule,
-    habits:renderHabits,calories:renderCalories,sleep:renderSleep,workouts:renderWorkouts,
+    habits:renderHabits,calories:renderCalories,mealplan:renderMealPlan,sleep:renderSleep,workouts:renderWorkouts,
     budget:renderBudget,credit:renderCredit,networth:renderNetWorth,retirement:renderRetirement,taxes:renderTaxes,property:renderProperty,
     house:renderHouse,income:renderIncome,goals:renderGoals,weekly:renderWeekly,plan:renderPlan,
     review:renderReview,notes:renderNotes,vision:renderVision,backup:renderBackup,notif:renderNotif,settings:renderSettings,'data-info':renderDataInfo,
@@ -2618,7 +2681,7 @@ async function initNotifications(){
     const h=new Date().getHours();const dk=getDK(0);
     if(h>=6&&h<10&&!localStorage.getItem('bp_notif_morning_'+dk)){
       const ci=S.checkins[dk]||{};
-      if(!ci.priority){new Notification('Good morning.',{body:'Set your priority for today. Takes 30 seconds.',icon:'/icon-192.png'});localStorage.setItem('bp_notif_morning_'+dk,'1');}
+      if(!ci.priority){new Notification('Good morning.',{body:'Set your priority for today. Takes 30 seconds.',icon:'/life-blueprint/icon-192.png'});localStorage.setItem('bp_notif_morning_'+dk,'1');}
     }
   }
 }
