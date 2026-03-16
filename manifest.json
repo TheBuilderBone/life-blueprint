@@ -1,0 +1,42 @@
+{
+  "name": "Life Blueprint",
+  "short_name": "Blueprint",
+  "description": "Your daily operating system — life, habits, and finances in one place.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080810",
+  "theme_color": "#080810",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Daily Check-In",
+      "short_name": "Check-In",
+      "description": "Open morning check-in",
+      "url": "/?tab=checkin",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Log Calories",
+      "short_name": "Calories",
+      "description": "Log today's food",
+      "url": "/?tab=calories",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
