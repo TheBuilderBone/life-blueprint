@@ -617,19 +617,19 @@ const S={
   goals:ld('goals',{efund:0,car:0,savings:0}),
   budget:ld('budget',{
     income:[
-      {name:'Net Pay',amt:2960,tag:'Job',tc:'var(--green)'},
-      {name:'Gas Reimbursement',amt:250,tag:'Reimb',tc:'var(--purple)'},
-      {name:"Brother's Rent",amt:350,tag:'Offset',tc:'var(--blue)'},
+      {name:'Net Pay',amt:2960,tag:'Job',tc:'var(--green)',type:'recurring'},
+      {name:'Gas Reimbursement',amt:250,tag:'Reimb',tc:'var(--purple)',type:'recurring'},
+      {name:"Brother's Rent",amt:350,tag:'Offset',tc:'var(--blue)',type:'recurring'},
     ],
     expenses:[
-      {name:'Mortgage',amt:836,tag:'Fixed',tc:'var(--muted)'},
-      {name:'Insurance ×2',amt:180,tag:'Fixed',tc:'var(--muted)'},
-      {name:'Utilities',amt:160,tag:'Fixed',tc:'var(--muted)'},
-      {name:'Phone + Internet',amt:110,tag:'Fixed',tc:'var(--muted)'},
-      {name:'Fast Food 🔥',amt:420,tag:'Drain',tc:'var(--red)'},
-      {name:'Bar 🔥',amt:400,tag:'Drain',tc:'var(--red)'},
-      {name:'Gas (personal)',amt:80,tag:'Fixed',tc:'var(--muted)'},
-      {name:'Misc',amt:200,tag:'?',tc:'var(--gold)'},
+      {name:'Mortgage',amt:836,tag:'Fixed',tc:'var(--muted)',type:'recurring',cat:'needs'},
+      {name:'Insurance ×2',amt:180,tag:'Fixed',tc:'var(--muted)',type:'recurring',cat:'needs'},
+      {name:'Utilities',amt:160,tag:'Fixed',tc:'var(--muted)',type:'variable',cat:'needs'},
+      {name:'Phone + Internet',amt:110,tag:'Fixed',tc:'var(--muted)',type:'recurring',cat:'needs'},
+      {name:'Fast Food 🔥',amt:420,tag:'Drain',tc:'var(--red)',type:'discretionary',cat:'wants'},
+      {name:'Bar 🔥',amt:400,tag:'Drain',tc:'var(--red)',type:'discretionary',cat:'wants'},
+      {name:'Gas (personal)',amt:80,tag:'Fixed',tc:'var(--muted)',type:'variable',cat:'needs'},
+      {name:'Misc',amt:200,tag:'?',tc:'var(--gold)',type:'other',cat:'wants'},
     ],
   }),
   groceryList:ld('groceryList',[
@@ -1636,49 +1636,154 @@ function renderBudget(){
   const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
   const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);
   const surplus=tIn-tOut;
-  document.getElementById('content').innerHTML=`
-  ${recCardHtml('finance-budget','💰','This Week\'s Financial Move','AI · Personalized')}
+  const needs=S.budget.expenses.filter(e=>e.cat==='needs').reduce((a,r)=>a+r.amt,0);
+  const wants=S.budget.expenses.filter(e=>e.cat==='wants').reduce((a,r)=>a+r.amt,0);
+  const savings=S.budget.expenses.filter(e=>e.cat==='savings').reduce((a,r)=>a+r.amt,0);
+  const uncategorized=S.budget.expenses.filter(e=>!e.cat||e.cat==='other').reduce((a,r)=>a+r.amt,0);
+  const needsPct=tIn>0?Math.round((needs/tIn)*100):0;
+  const wantsPct=tIn>0?Math.round((wants/tIn)*100):0;
+  const savingsPct=tIn>0?Math.round((savings/tIn)*100):0;
+  const targetNeeds=50;const targetWants=20;const targetSavings=30;
+  const typeColors={recurring:"var(--blue)",variable:"var(--teal)",discretionary:"var(--accent)",savings_tx:"var(--green)",one_time:"var(--gold)",other:"var(--muted)"};
+  const catColors={needs:"var(--blue)",wants:"var(--accent)",savings:"var(--green)",other:"var(--muted)"};
+  const catLabels={needs:"Needs (50%)",wants:"Wants (20%)",savings:"Savings (30%)",other:"Uncategorized"};
+  document.getElementById("content").innerHTML=`
+  ${recCardHtml("finance-budget","\u{1F4B0}","This Week\'s Financial Move","AI")}
   <div class="section">
     <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px">
-      <div class="stat"><div class="stat-val" style="color:var(--green)">$${tIn.toLocaleString()}</div><div class="stat-lbl">In</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--green)">$${tIn.toLocaleString()}</div><div class="stat-lbl">Monthly In</div></div>
       <div class="stat"><div class="stat-val" style="color:var(--red)">$${tOut.toLocaleString()}</div><div class="stat-lbl">Out</div></div>
-      <div class="stat"><div class="stat-val" style="color:${surplus>=0?'var(--green)':'var(--red)'}">${surplus>=0?'+':''}$${Math.abs(surplus).toLocaleString()}</div><div class="stat-lbl">Surplus</div></div>
+      <div class="stat"><div class="stat-val" style="color:${surplus>=0?"var(--green)":"var(--red)"}">${surplus>=0?"+":""}$${Math.abs(surplus).toLocaleString()}</div><div class="stat-lbl">Surplus</div></div>
     </div>
+  </div>
+  <div class="section">
+    <div class="sec-lbl">50 / 30 / 20 Breakdown</div>
+    <div class="card cp" style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Based on $${tIn.toLocaleString()}/mo income. <b style="color:var(--text)">Target: 50% Needs · 30% Savings · 20% Wants.</b></div>
+      ${[
+        ["Needs","housing · bills · food · transport",needs,needsPct,targetNeeds,"var(--blue)",needsPct<=targetNeeds],
+        ["Savings","emergency · retirement · goals",savings,savingsPct,targetSavings,"var(--green)",savingsPct>=targetSavings],
+        ["Wants","bar · eating out · entertainment",wants,wantsPct,targetWants,"var(--accent)",wantsPct<=targetWants],
+      ].map(([label,desc,amt,pct,target,color,ok])=>`
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+            <div><div style="font-size:13px;font-weight:600">${label}</div><div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--muted)">${desc}</div></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:${ok?"var(--green)":"var(--red)"}">${pct}%</div>
+            <div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--muted)">target ${target}%</div>
+          </div>
+        </div>
+        <div style="height:7px;background:var(--dim);border-radius:4px;overflow:hidden;margin-bottom:3px"><div style="height:100%;width:${Math.min(100,label==="Savings"?pct/target*100:pct)}%;background:${ok?color:"var(--red)"};border-radius:4px;transition:width .5s"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>$${amt.toLocaleString()}/mo</span><span style="color:${ok?"var(--green)":"var(--red)"}">${ok?"\u2713 On track":label==="Savings"?"\u2193 $"+Math.round((target-pct)/100*tIn)+" under":"\u2191 $"+Math.round((pct-target)/100*tIn)+" over"}</span></div>
+      </div>`).join("")}
+      ${uncategorized>0?`<div style="margin-top:4px;padding:8px 10px;background:rgba(240,160,0,.07);border:1px solid rgba(240,160,0,.2);border-radius:7px;font-size:12px;color:var(--gold)">\u26A0 $${uncategorized.toLocaleString()} uncategorized — assign a category below.</div>`:""}
+    </div>
+  </div>
+  <div class="section">
     <div class="sec-lbl">Income</div>
     <div class="card" style="margin-bottom:10px">
       ${S.budget.income.map((r,i)=>`<div class="row">
-        <input style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.income[${i}].name=this.value;save('budget')">
-        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:14px;width:74px;text-align:right;color:var(--green)" value="${r.amt}" onblur="S.budget.income[${i}].amt=parseFloat(this.value)||0;save('budget');renderBudget()">
-        <button onclick="S.budget.income.splice(${i},1);save('budget');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
-      </div>`).join('')}
-      <div style="padding:8px 14px;background:var(--dim);font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">Total: +$${tIn.toLocaleString()}</div>
-    </div>
-    <div class="sec-lbl">Expenses</div>
-    <div class="card">
-      ${S.budget.expenses.map((r,i)=>`<div class="row">
-        <input style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.expenses[${i}].name=this.value;save('budget')">
-        <span style="font-family:'DM Mono',monospace;font-size:9px;padding:2px 6px;border-radius:5px;background:${r.tc}18;color:${r.tc};text-transform:uppercase;flex-shrink:0;margin:0 6px">${r.tag}</span>
-        <input type="number" style="background:transparent;border:none;font-family:'DM Mono',monospace;font-size:14px;width:74px;text-align:right;color:${r.tc}" value="${r.amt}" onblur="S.budget.expenses[${i}].amt=parseFloat(this.value)||0;save('budget');renderBudget()">
-        <button onclick="S.budget.expenses.splice(${i},1);save('budget');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">×</button>
-      </div>`).join('')}
-      <div style="padding:8px 14px">
-        <div style="display:flex;gap:8px">
-          <input type="text" id="exp-name" placeholder="Add expense..." style="flex:1">
-          <input type="number" id="exp-amt" placeholder="$" style="width:80px">
-          <button class="btn btn-sm" onclick="addExp()">+</button>
-        </div>
-      </div>
-      <div style="padding:10px 14px;background:var(--dim);display:flex;justify-content:space-between">
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">Surplus</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${surplus>=0?'var(--green)':'var(--red)'}">${surplus>=0?'+':''}$${Math.abs(surplus).toLocaleString()}</span>
-      </div>
+        <input style="background:transparent;border:none;color:var(--text);font-size:14px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.income[${i}].name=this.value;save(\'budget\')">
+        <input type="number" style="background:transparent;border:none;font-family:\'DM Mono\',monospace;font-size:14px;width:70px;text-align:right;color:var(--green)" value="${r.amt}" onblur="S.budget.income[${i}].amt=parseFloat(this.value)||0;save(\'budget\');renderBudget()">
+        <button onclick="S.budget.income.splice(${i},1);save(\'budget\');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;min-height:var(--touch);padding:0 4px">\u00D7</button>
+      </div>`).join("")}
+      <div style="padding:8px 14px;background:var(--dim);font-family:\'DM Mono\',monospace;font-size:10px;color:var(--green)">Total: +$${tIn.toLocaleString()} / mo</div>
     </div>
   </div>
-  <div class="alert ag" style="margin-top:10px"><b>Two changes = +$480/mo:</b> Groceries instead of fast food + bar to 1 night/$30. Emergency fund in 10 weeks from those two changes alone.</div>
+  <div class="section">
+    <div class="sec-lbl">Expenses by Category</div>
+    ${["needs","savings","wants","other"].map(cat=>{
+      const catExpenses=S.budget.expenses.filter(e=>(e.cat||"other")===cat);
+      if(!catExpenses.length)return"";
+      const catTotal=catExpenses.reduce((a,r)=>a+r.amt,0);
+      const catColor=catColors[cat];
+      return`<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:7px"><div style="width:3px;height:16px;background:${catColor};border-radius:2px"></div><div style="font-size:13px;font-weight:600">${catLabels[cat]}</div></div>
+          <div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:800;color:${catColor}">$${catTotal.toLocaleString()}</div>
+        </div>
+        <div class="card">${catExpenses.map(r=>{
+          const i=S.budget.expenses.indexOf(r);
+          const tc=typeColors[r.type||"other"];
+          return`<div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <input style="background:transparent;border:none;color:var(--text);font-size:13px;flex:1;min-width:0" value="${r.name}" onblur="S.budget.expenses[${i}].name=this.value;save(\'budget\')">
+              <input type="number" style="background:transparent;border:none;font-family:\'DM Mono\',monospace;font-size:14px;width:70px;text-align:right;color:${catColor}" value="${r.amt}" onblur="S.budget.expenses[${i}].amt=parseFloat(this.value)||0;save(\'budget\');renderBudget()">
+              <button onclick="S.budget.expenses.splice(${i},1);save(\'budget\');renderBudget()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 2px">\u00D7</button>
+            </div>
+            <div style="display:flex;gap:6px">
+              <select onchange="S.budget.expenses[${i}].type=this.value;save(\'budget\');renderBudget()" style="background:${tc}18;border:1px solid ${tc}40;color:${tc};font-family:\'DM Mono\',monospace;font-size:9px;padding:3px 6px;border-radius:5px;min-height:auto">
+                <option value="recurring" ${(r.type||"")==="recurring"?"selected":""}>\uD83D\uDD04 Recurring</option>
+                <option value="variable" ${(r.type||"")==="variable"?"selected":""}>\uD83D\uDCCA Variable</option>
+                <option value="discretionary" ${(r.type||"")==="discretionary"?"selected":""}>\uD83C\uDFAF Discretionary</option>
+                <option value="savings_tx" ${(r.type||"")==="savings_tx"?"selected":""}>\uD83D\uDCB0 Savings Transfer</option>
+                <option value="one_time" ${(r.type||"")==="one_time"?"selected":""}>\u26A1 One-Time</option>
+                <option value="other" ${!(r.type)||r.type==="other"?"selected":""}>\uD83D\uDCCC Other</option>
+              </select>
+              <select onchange="S.budget.expenses[${i}].cat=this.value;save(\'budget\');renderBudget()" style="background:${catColor}18;border:1px solid ${catColor}40;color:${catColor};font-family:\'DM Mono\',monospace;font-size:9px;padding:3px 6px;border-radius:5px;min-height:auto">
+                <option value="needs" ${(r.cat||"")==="needs"?"selected":""}>Needs 50%</option>
+                <option value="savings" ${(r.cat||"")==="savings"?"selected":""}>Savings 30%</option>
+                <option value="wants" ${(r.cat||"")==="wants"?"selected":""}>Wants 20%</option>
+                <option value="other" ${!(r.cat)||r.cat==="other"?"selected":""}>Uncategorized</option>
+              </select>
+            </div>
+          </div>`;
+        }).join("")}</div>
+      </div>`;
+    }).join("")}
+  </div>
+  <div class="section">
+    <div class="sec-lbl">Add Expense</div>
+    <div class="card cp">
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:8px">
+        <div class="fl" style="margin:0"><div class="fl-lbl">Name</div><input type="text" id="exp-name" placeholder="e.g. Netflix, groceries..."></div>
+        <div class="fl" style="margin:0"><div class="fl-lbl">Amount</div><input type="number" id="exp-amt" placeholder="$"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div class="fl" style="margin:0"><div class="fl-lbl">Category</div>
+          <select id="exp-cat">
+            <option value="needs">Needs (50%)</option>
+            <option value="savings">Savings (30%)</option>
+            <option value="wants">Wants (20%)</option>
+            <option value="other">Uncategorized</option>
+          </select>
+        </div>
+        <div class="fl" style="margin:0"><div class="fl-lbl">Type</div>
+          <select id="exp-type">
+            <option value="recurring">\uD83D\uDD04 Recurring</option>
+            <option value="variable">\uD83D\uDCCA Variable</option>
+            <option value="discretionary">\uD83C\uDFAF Discretionary</option>
+            <option value="savings_tx">\uD83D\uDCB0 Savings Transfer</option>
+            <option value="one_time">\u26A1 One-Time</option>
+            <option value="other">\uD83D\uDCCC Other</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-full" onclick="addExp()">Add Expense</button>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:12px;margin-bottom:10px">
+    <span style="font-size:13px;color:var(--muted)">Monthly Surplus</span>
+    <span style="font-family:\'Barlow Condensed\',sans-serif;font-size:24px;font-weight:800;color:${surplus>=0?"var(--green)":"var(--red)"}">${surplus>=0?"+":""}$${Math.abs(surplus).toLocaleString()}</span>
+  </div>
+  <div class="alert ag"><b>Two changes = +$480/mo:</b> Groceries instead of fast food + bar to 1 night/$30. Both go straight to Savings category.</div>
   `;
-  requestAnimationFrame(()=>loadRec('finance-budget','💰','Financial Move','AI',null));
+  requestAnimationFrame(()=>loadRec("finance-budget","\u{1F4B0}","Financial Move","AI",null));
 }
-function addExp(){const n=document.getElementById('exp-name').value.trim();const a=parseFloat(document.getElementById('exp-amt').value)||0;if(!n)return;S.budget.expenses.push({name:n,amt:a,tag:'Expense',tc:'var(--muted)'});save('budget');renderBudget();}
+function addExp(){
+  const n=document.getElementById("exp-name").value.trim();
+  const a=parseFloat(document.getElementById("exp-amt").value)||0;
+  const cat=document.getElementById("exp-cat").value;
+  const type=document.getElementById("exp-type").value;
+  if(!n)return;
+  const catColors={needs:"var(--blue)",wants:"var(--accent)",savings:"var(--green)",other:"var(--muted)"};
+  const catTags={needs:"Need",wants:"Want",savings:"Save",other:"Other"};
+  S.budget.expenses.push({name:n,amt:a,tag:catTags[cat]||"Other",tc:catColors[cat]||"var(--muted)",cat,type});
+  save("budget");renderBudget();
+}
 
 // ============================================================
 // RENDER: CREDIT + NET WORTH
