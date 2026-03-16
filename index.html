@@ -871,8 +871,9 @@ async function getRecommendation(type,contextData){
   const dk=getDK(0);const cacheKey=`${type}_${dk}`;
   const cached=S.recCache[cacheKey];
   if(cached&&(Date.now()-cached.ts)<REC_CACHE_TTL)return cached.data;
-  const activeKey=localStorage.getItem('bp_user_anthropic_key')||CFG.ANTHROPIC_KEY;
-  if(!activeKey||activeKey.includes('PASTE'))return null;
+  // Must be on Netlify for the serverless function to work
+  const onNetlify=window.location.hostname.includes('netlify.app')||window.location.hostname.includes('netlify.com');
+  if(!onNetlify){return{_error:true,_status:0,_message:'Open the app from your Netlify URL (blueprint-os.netlify.app) to use AI features'};}
 
   const scores=computeScores();
   const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
@@ -993,9 +994,9 @@ Respond in EXACT JSON:
   };
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('/netlify/functions/ai',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':activeKey,'anthropic-version':'2023-06-01'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',max_tokens:600,
         messages:[{role:'user',content:PROMPTS[type]}],
@@ -1003,8 +1004,8 @@ Respond in EXACT JSON:
     });
     if(!res.ok){
       const errData=await res.json().catch(()=>({}));
-      console.error('Anthropic API error:',res.status,errData);
-      return {_error:true,_status:res.status,_message:errData?.error?.message||'Unknown error'};
+      console.error('AI function error:',res.status,errData);
+      return {_error:true,_status:res.status,_message:errData?.error||'Unknown error'};
     }
     const data=await res.json();
     const text=data.content?.[0]?.text||'';
@@ -1039,14 +1040,14 @@ async function loadRec(type,icon,title,tag,contextData){
   if(!bodyEl)return;
   if(!data){
     bodyEl.className='rec-body';
-    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">Go to <b style="color:var(--text)">⚙️ Settings → Setup</b> and enter your Anthropic API key.</div>`;
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">AI unavailable — open the app from your Netlify URL to enable recommendations.</div>`;
     return;
   }
   if(data._error){
     bodyEl.className='rec-body';
-    const msg=data._status===401?'Invalid API key — go to ⚙️ Settings → Setup and re-enter your Anthropic key':
+    const msg=data._status===401?'Invalid Anthropic key — check Netlify environment variables':
               data._status===429?'Rate limit hit — wait a minute and tap Refresh':
-              data._status===400?'API error 400 — your key may be invalid or out of credits':
+              data._status===500?'Function error — check that ANTHROPIC_KEY is set in Netlify':
               `Error ${data._status}: ${data._message}`;
     bodyEl.innerHTML=`<div style="font-size:13px;color:var(--red);margin-bottom:8px">⚠ ${msg}</div>
     <button class="btn btn-sm btn-ghost" onclick="refreshRec('${type}')">Try Again</button>`;
@@ -2426,42 +2427,35 @@ function renderBackup(){
   `;
 }
 function renderSettings(){
-  const savedAK=localStorage.getItem('bp_user_anthropic_key')||'';
   const savedSU=localStorage.getItem('bp_user_supabase_url')||CFG.SUPABASE_URL||'';
   const savedSK=localStorage.getItem('bp_user_supabase_key')||CFG.SUPABASE_KEY||'';
-  const hasAK=savedAK.startsWith('sk-ant');
   const hasSU=savedSU.includes('supabase.co');
   const hasSK=savedSK.startsWith('eyJ');
-  // Debug — show exactly what's in storage
-  const debugInfo=`localStorage key: "${localStorage.getItem('bp_user_anthropic_key')||'null'}" | CFG key: "${CFG.ANTHROPIC_KEY.substring(0,20)}..."`;
   document.getElementById('content').innerHTML=`
   <div style="padding-top:4px">
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">App Setup</div>
-    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px">Enter your API keys once — saved on this device only</div>
-    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--gold);background:rgba(240,160,0,.08);border:1px solid rgba(240,160,0,.2);border-radius:6px;padding:6px 10px;margin-bottom:10px;word-break:break-all">${debugInfo}</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:14px">Configure your app connections</div>
   </div>
+
+  <!-- Status -->
   <div class="card" style="margin-bottom:14px">
     <div class="row">
-      <div style="font-size:18px">${hasAK?'✅':'❌'}</div>
-      <div style="flex:1"><div class="row-title">AI Recommendations</div><div class="row-sub">${hasAK?'Anthropic key saved — recommendations active':'No key yet — enter below to enable'}</div></div>
+      <div style="font-size:18px">✅</div>
+      <div style="flex:1"><div class="row-title">AI Recommendations</div><div class="row-sub">Powered by Netlify serverless function — key secured on server</div></div>
     </div>
     <div class="row">
       <div style="font-size:18px">${hasSU&&hasSK?'✅':'❌'}</div>
       <div style="flex:1"><div class="row-title">Cloud Sync</div><div class="row-sub">${hasSU&&hasSK?'Supabase connected — syncing across devices':'Not configured — enter below'}</div></div>
     </div>
   </div>
-  <div class="sec-lbl">AI Advisor Key (Anthropic)</div>
+
+  <!-- AI Status -->
+  <div class="sec-lbl">AI Recommendations</div>
   <div class="card cp" style="margin-bottom:14px">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">Get your key at <b style="color:var(--text)">console.anthropic.com</b> → API Keys → Create Key. Costs ~$0.01 per conversation.</div>
-    <div class="fl"><div class="fl-lbl">Anthropic API Key</div>
-      <input type="password" id="set-anthropic" placeholder="sk-ant-api03-..." value="${savedAK}" style="font-family:'DM Mono',monospace;font-size:12px">
-    </div>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-full" onclick="saveAnthropicKey()">Save AI Key</button>
-      ${hasAK?`<button class="btn btn-ghost" onclick="clearAnthropicKey()">Clear</button>`:''}
-    </div>
-    ${hasAK?`<div class="ag" style="margin-top:10px;margin-bottom:0"><b>Key saved.</b> AI recommendations and advisor are active on this device.</div>`:''}
+    <div class="ag" style="margin-bottom:0"><b>✓ Secured on server.</b> Your Anthropic key lives in Netlify environment variables — never in the browser. AI recommendations and advisor are always active.</div>
   </div>
+
+  <!-- Supabase -->
   <div class="sec-lbl">Cloud Sync (Supabase)</div>
   <div class="card cp" style="margin-bottom:14px">
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">Get these at <b style="color:var(--text)">supabase.com/dashboard</b> → your project → Settings → API.</div>
@@ -2472,31 +2466,20 @@ function renderSettings(){
       <input type="password" id="set-supabase-key" placeholder="eyJ..." value="${savedSK}" style="font-family:'DM Mono',monospace;font-size:12px">
     </div>
     <button class="btn btn-full" onclick="saveSupabaseKeys()">Save Sync Keys</button>
-    ${hasSU&&hasSK?`<div class="ag" style="margin-top:10px;margin-bottom:0"><b>Sync keys saved.</b> Data syncing across devices.</div>`:''}
+    ${hasSU&&hasSK?`<div class="ag" style="margin-top:10px;margin-bottom:0"><b>Sync active.</b> Data syncing across your devices.</div>`:''}
   </div>
-  <div class="alert ay"><b>These keys are stored only on this device.</b> They never get uploaded to GitHub. You need to enter them once on each device — phone and computer separately.</div>
+
+  <div class="alert ay"><b>Supabase keys are stored only on this device.</b> Enter them once on each device — phone and computer separately.</div>
+
+  <div class="section">
+    <div class="sec-lbl">How it works</div>
+    <div class="card">
+      <div class="row"><div style="font-size:18px">🤖</div><div style="flex:1"><div class="row-title">AI Key</div><div class="row-sub">Stored in Netlify environment variables — never touches your browser</div></div></div>
+      <div class="row"><div style="font-size:18px">🗄️</div><div style="flex:1"><div class="row-title">Supabase URL + Key</div><div class="row-sub">Stored in this device's localStorage — needed for cloud sync</div></div></div>
+      <div class="row"><div style="font-size:18px">🔒</div><div style="flex:1"><div class="row-title">Your data</div><div class="row-sub">Protected by Row Level Security — only your user ID can access it</div></div></div>
+    </div>
+  </div>
   `;
-}
-
-function saveAnthropicKey(){
-  const key=document.getElementById('set-anthropic').value.trim();
-  if(!key){showToast('Enter your key first','var(--red)');return;}
-  if(!key.startsWith('sk-ant')){showToast('Key should start with sk-ant','var(--red)');return;}
-  localStorage.setItem('bp_user_anthropic_key',key);
-  sessionStorage.setItem('bp_key_ak',key);
-  CFG.ANTHROPIC_KEY=key;
-  // Clear rec cache so new recs load with the key
-  S.recCache={};sv('recCache',{});
-  showToast('✓ AI key saved','var(--green)');
-  renderSettings();
-}
-
-function clearAnthropicKey(){
-  if(!confirm('Remove the saved AI key from this device?'))return;
-  localStorage.removeItem('bp_user_anthropic_key');
-  CFG.ANTHROPIC_KEY='PASTE_YOUR_ANTHROPIC_KEY_HERE';
-  showToast('Key cleared','var(--gold)');
-  renderSettings();
 }
 
 function saveSupabaseKeys(){
@@ -2592,8 +2575,7 @@ async function sendMsg(){
   const input=document.getElementById('advisor-input');const text=input.value.trim();if(!text)return;
   addMsg(text,'user');advisorHistory.push({role:'user',content:text});input.value='';
   addTyping();
-  const activeAdvisorKey=localStorage.getItem('bp_user_anthropic_key')||CFG.ANTHROPIC_KEY;
-  if(!activeAdvisorKey||activeAdvisorKey.includes('PASTE')){removeTyping();addMsg('Go to ⚙️ Settings → Setup and enter your Anthropic API key to enable the advisor.','ai');return;}
+  // Key is server-side via Netlify function — no client key needed
   const scores=computeScores();const eff=computeEff();const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;const dk=getDK(0);const ci=S.checkins[dk]||{};
   const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const systemPrompt=`You are a personal advisor embedded in a life and finance tracking PWA for a specific user. You have their real data and speak directly, honestly, and practically. No generic advice — everything references their specific numbers.
@@ -2620,9 +2602,9 @@ CURRENT DATA:
 Style: Direct, honest, specific. Short unless they ask for detail. Reference their actual numbers. Prioritize highest-leverage actions given where they actually are.`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':activeAdvisorKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
+    const res=await fetch('/netlify/functions/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
     removeTyping();
-    if(!res.ok){addMsg('Connection error — check your Anthropic key in ⚙️ Settings → Setup.','ai');return;}
+    if(!res.ok){addMsg('AI function error — check that ANTHROPIC_KEY is set in Netlify environment variables.','ai');return;}
     const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
     advisorHistory.push({role:'assistant',content:reply});addMsg(reply,'ai');
   }catch{removeTyping();addMsg('Unable to connect. Check your internet connection.','ai');}
