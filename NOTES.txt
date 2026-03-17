@@ -1,20 +1,167 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 2026
+Last updated: March 16 2026
 
-LIVE URL: https://thebuilderbone.github.io/life-blueprint/
-AI PROXY: https://blueprint-ai.brodystanfield.workers.dev
+═══════════════════════════════════════
+LIVE URLS
+═══════════════════════════════════════
+App: https://thebuilderbone.github.io/life-blueprint/
+AI Proxy: https://blueprint-ai.brodystanfield.workers.dev
+Cloudflare Account: brodystanfield.workers.dev
 
-INFRASTRUCTURE:
-- GitHub Pages: hosting — working
-- Cloudflare Workers: AI proxy — working
-- Supabase: cloud sync — working
-- Anthropic: AI brain — working, credits added
+═══════════════════════════════════════
+INFRASTRUCTURE
+═══════════════════════════════════════
+GitHub Pages: hosting — working
+Cloudflare Workers: AI proxy — working, key stored as secret
+Supabase: cloud sync — working, RLS enabled, user_1
+Anthropic: AI brain — working, credits added
+Netlify: completely removed, OAuth revoked from GitHub
 
-KNOWN ISSUES:
-- Ctrl+Shift+R hard refresh gives 404 — expected behavior, not fixable
-- F5 normal refresh works correctly
+═══════════════════════════════════════
+REPO FILES
+═══════════════════════════════════════
+index.html — main app (all logic in one file)
+sw.js — service worker v2, network-first for HTML
+manifest.json — PWA config, start_url /life-blueprint/
+icon.svg — dark background orange B icon
+NOTES.txt — this file
+README.md — GitHub default
 
-NEXT SESSION GOALS:
-- Use app daily for 2 weeks
-- Page by page improvements based on real use
-- Notifications setup
+═══════════════════════════════════════
+WORKING FEATURES
+═══════════════════════════════════════
+Core:
+- All tabs load correctly
+- Normal refresh works (F5 only)
+- PWA installs correctly on iPhone
+- Correct home screen URL and icon
+- Cloud sync between phone and computer
+- Live clock in topbar and dashboard hero
+
+AI:
+- Dashboard recommendations (meal, exercise, house, finance)
+- AI advisor via robot icon
+- Budget and house rec cards
+- AI personalized summary after each daily session
+- All AI calls go through Cloudflare Worker — key never in browser
+
+Daily Sessions:
+- Morning Plan — triggers after 6 AM, first open only
+- Midday Check-in — triggers after 12 PM, after morning complete
+- Evening Review — triggers after 6 PM, after midday complete
+- Each session locks app until complete — only thing you can do
+- Behavior ratings: Firing/Moving/Coasting/Drifting/Stalling/Crashed/Flatline
+- AI generates personalized 2-3 sentence summary after each session
+- References actual answers not generic advice
+- Sessions saved to bp_sessions in localStorage and synced to Supabase
+- Evening Q1 asks about bed time — not sleep (that is morning Q1)
+- Re-trigger guard via sessionStorage — sessions never repeat same day
+
+Tabs:
+- Today: Dashboard, Check-In history, Schedule Builder
+- Body: Habits, Calories, Meal Plan, Sleep, Workouts
+- Finance: Budget (50/30/20), Credit, Net Worth, Retirement, Side Tax, Property
+- Build: House, Income, Goals, Weekly Plan, Action Plan
+- Reflect: Monthly Review, Notes, Vision, Backup
+- Settings: Setup (Supabase keys), Notifications, About
+
+═══════════════════════════════════════
+KNOWN ISSUES
+═══════════════════════════════════════
+- Ctrl+Shift+R hard refresh gives 404 — expected GitHub Pages
+  behavior, not fixable, F5 works correctly
+- Notifications not yet tested — do after Session 2
+
+═══════════════════════════════════════
+DECISIONS MADE
+═══════════════════════════════════════
+- Cloudflare Workers for AI — free forever, no build minutes
+- AI key server-side only — never in browser code or GitHub
+- Supabase anon key in localStorage — protected by RLS policy
+- Three daily sessions are mandatory gates — must complete to use app
+- Behavior ratings replace old streak system
+- Option B build approach — one section at a time, test each before next
+- All habit values will be adjustable in Personal Settings
+- Current Mission replaces Housing Progress — generic for any user
+- AI calorie estimation for food — type name, AI estimates macros
+- AI calorie burn estimation for exercise — based on activity and weight
+
+═══════════════════════════════════════
+COMPLETED SESSIONS
+═══════════════════════════════════════
+Session 1 — Daily Check-in Rebuild — COMPLETE
+- Built three daily sessions (Morning/Midday/Evening)
+- Behavior rating system (7 levels, energy based names)
+- AI personalized summary after each session
+- Fixed order bug — sessions trigger in correct sequence
+- Fixed re-trigger bug — sessions never repeat same day
+- Fixed evening Q1 — now asks about bed time not sleep
+- Added live clock to topbar and dashboard hero
+- All data preserved — old checkins untouched
+
+═══════════════════════════════════════
+NEXT SESSION — Session 2: Habit Tracking Rebuild
+═══════════════════════════════════════
+Goal: Replace current habit list with 8 simplified areas
+that track real measurable values with visual progress.
+
+Eight habit areas:
+💧 Hydration
+  - Target: 100 oz/day (adjustable)
+  - Log oz per drink throughout day
+  - Animated fill rising toward target
+  - Shows oz remaining
+
+🥗 Nutrition
+  - Target: 2300 cal, 185g P, 230g C, 70g F (adjustable)
+  - Manual input: name, calories, macros
+  - AI assisted: type food name and portion, AI estimates macros
+  - User accepts or adjusts AI estimate before logging
+  - Calorie ring + macro bars
+
+💪 Movement
+  - Input: activity type, duration, intensity
+  - AI estimates calories burned based on activity and body weight
+  - Current weight: 215 lbs (adjustable in settings)
+  - Shows cal burned, active minutes, activity log
+
+😴 Sleep
+  - Input: bedtime, wake time, quality rating, alcohol night before
+  - Shows hours slept, quality trend, alcohol correlation over time
+
+💰 Financial Discipline
+  - Input: spending decisions, amount saved, impulse purchases
+  - Shows daily spend vs budget, running weekly total
+
+🎯 Current Mission
+  - User defines project name and current milestone
+  - Input: tasks worked on today, time spent, what is next
+  - Shows overall completion and last task completed
+  - Generic — works for house, business, certification, anything
+
+🧠 Mental Clarity
+  - Input: focus level, stress level, what is occupying mind
+  - Shows 7 day trend
+
+⏰ Time Management
+  - Input: did you execute your plan, what got skipped and why
+  - Shows follow-through rate over time
+
+Personal Settings additions:
+- Water target (default 100 oz)
+- Calorie target (default 2300)
+- Macro targets P/C/F
+- Body weight (default 215 lbs)
+- Current Mission name and milestone
+- All values editable at any time
+
+Design direction:
+- Each habit card feels alive not flat
+- Water: animated fill rising as oz logged
+- Calories: ring filling toward target
+- Movement: progress bar showing cal burned
+- Clean one glance tells you where you stand
+
+After Session 2:
+- Test notifications properly
+- Session 3: Dashboard cleanup and AI summary integration
