@@ -1333,10 +1333,18 @@ function checkSessionTrigger(){
   if(!S.sessions[dk])S.sessions[dk]={};
   const s=S.sessions[dk];
   let type=null;
-  if(h>=18&&!s.evening)type='evening';
-  else if(h>=12&&!s.midday)type='midday';
+  // Enforce sequence: each session requires the prior one to be done
+  if(h>=18&&s.midday&&!s.evening)type='evening';
+  else if(h>=12&&s.morning&&!s.midday)type='midday';
   else if(h>=6&&!s.morning)type='morning';
-  if(type)startSession(type);
+  if(!type)return;
+  // Only offer each session type once per page load — prevents re-trigger on
+  // tab switches and background/foreground events without blocking a true
+  // fresh open after the user dismissed without completing
+  const guardKey='bp_ci_offered_'+dk+'_'+type;
+  if(sessionStorage.getItem(guardKey))return;
+  sessionStorage.setItem(guardKey,'1');
+  startSession(type);
 }
 
 function startSession(type){
@@ -1464,8 +1472,9 @@ function closeSession(){
 }
 
 async function generateSessionSummary(type,answers){
-  const lines=Object.entries(answers).filter(([k])=>k!=='rating').map(([k,v])=>`${k}: ${v}`).join('\n');
-  const prompt=`You are a brief, warm, direct life coach. The user just completed their ${type} check-in. Their answers:\n\n${lines}\n\nWrite 2-3 sentences personalized to exactly what they said. Be specific, not generic. Direct and honest tone. No headers or bullet points — just the response.`;
+  const qs=SESSION_QUESTIONS[type].filter(q=>q.type!=='rating');
+  const lines=qs.map(q=>`Q: ${q.q}\nA: ${answers[q.key]||'(no answer)'}`).join('\n\n');
+  const prompt=`You are a brief, direct life coach reviewing a ${type} check-in. Here is exactly what the user said:\n\n${lines}\n\nWrite exactly 2-3 sentences. Rules:\n- Reference something specific they actually said — quote their words or name the exact thing they mentioned (e.g. if they said "stressed about mortgage" say "mortgage", if their intention was "finish the deck" say "deck")\n- Do NOT write generic lines like "stay focused", "you've got this", or "keep pushing"\n- If something they said is concerning, name it directly and honestly\n- Warm but real tone — like a coach who actually read their answers\nJust the response, no headers, no bullet points.`;
   try{
     const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
       method:'POST',headers:{'Content-Type':'application/json'},
