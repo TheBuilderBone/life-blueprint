@@ -872,8 +872,8 @@ async function getRecommendation(type,contextData){
   const cached=S.recCache[cacheKey];
   if(cached&&(Date.now()-cached.ts)<REC_CACHE_TTL)return cached.data;
   // Must be on Netlify for the serverless function to work
-  // Cloudflare Worker handles the API call securely
-  const AI_URL='https://blueprint-ai.brodystanfield.workers.dev';
+  const onNetlify=window.location.hostname.includes('netlify.app')||window.location.hostname.includes('netlify.com');
+  if(!onNetlify){return{_error:true,_status:0,_message:'Open the app from your Netlify URL (blueprint-os.netlify.app) to use AI features'};}
 
   const scores=computeScores();
   const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
@@ -994,7 +994,7 @@ Respond in EXACT JSON:
   };
 
   try{
-    const res=await fetch(AI_URL,{
+    const res=await fetch('/netlify/functions/ai',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -2602,7 +2602,7 @@ CURRENT DATA:
 Style: Direct, honest, specific. Short unless they ask for detail. Reference their actual numbers. Prioritize highest-leverage actions given where they actually are.`;
 
   try{
-    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
+    const res=await fetch('/netlify/functions/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
     removeTyping();
     if(!res.ok){addMsg('AI function error — check that ANTHROPIC_KEY is set in Netlify environment variables.','ai');return;}
     const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
@@ -2647,7 +2647,7 @@ function show(tabId){
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
   // Only update URL in browser mode, not in standalone PWA mode
-  // URL update removed — caused 404 on refresh with GitHub Pages
+  if(history.replaceState&&!navigator.standalone)history.replaceState(null,'','/?tab='+tabId);
 }
 function renderCurrent(){show(curTab);}
 
@@ -2663,7 +2663,7 @@ function closeOverlay(id){document.getElementById(id).classList.remove('open');a
 async function initSW(){
   if(!('serviceWorker' in navigator))return;
   try{
-    const reg=await navigator.serviceWorker.register('/sw.js');
+    const reg=await navigator.serviceWorker.register('./sw.js');
     navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='NAVIGATE')show(e.data.tab);});
   }catch(e){console.log('SW failed:',e);}
 }
