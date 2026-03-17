@@ -871,9 +871,7 @@ async function getRecommendation(type,contextData){
   const dk=getDK(0);const cacheKey=`${type}_${dk}`;
   const cached=S.recCache[cacheKey];
   if(cached&&(Date.now()-cached.ts)<REC_CACHE_TTL)return cached.data;
-  // Must be on Netlify for the serverless function to work
-  const onNetlify=window.location.hostname.includes('netlify.app')||window.location.hostname.includes('netlify.com');
-  if(!onNetlify){return{_error:true,_status:0,_message:'Open the app from your Netlify URL (blueprint-os.netlify.app) to use AI features'};}
+
 
   const scores=computeScores();
   const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);
@@ -994,7 +992,7 @@ Respond in EXACT JSON:
   };
 
   try{
-    const res=await fetch('/netlify/functions/ai',{
+    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -1040,14 +1038,14 @@ async function loadRec(type,icon,title,tag,contextData){
   if(!bodyEl)return;
   if(!data){
     bodyEl.className='rec-body';
-    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">AI unavailable — open the app from your Netlify URL to enable recommendations.</div>`;
+    bodyEl.innerHTML=`<div style="font-size:13px;color:var(--muted)">AI unavailable — check your internet connection and try again.</div>`;
     return;
   }
   if(data._error){
     bodyEl.className='rec-body';
-    const msg=data._status===401?'Invalid Anthropic key — check Netlify environment variables':
+    const msg=data._status===401?'Invalid Anthropic key — check Cloudflare Worker secret':
               data._status===429?'Rate limit hit — wait a minute and tap Refresh':
-              data._status===500?'Function error — check that ANTHROPIC_KEY is set in Netlify':
+              data._status===500?'Worker error — check that ANTHROPIC_API_KEY is set in Cloudflare':
               `Error ${data._status}: ${data._message}`;
     bodyEl.innerHTML=`<div style="font-size:13px;color:var(--red);margin-bottom:8px">⚠ ${msg}</div>
     <button class="btn btn-sm btn-ghost" onclick="refreshRec('${type}')">Try Again</button>`;
@@ -2441,7 +2439,7 @@ function renderSettings(){
   <div class="card" style="margin-bottom:14px">
     <div class="row">
       <div style="font-size:18px">✅</div>
-      <div style="flex:1"><div class="row-title">AI Recommendations</div><div class="row-sub">Powered by Netlify serverless function — key secured on server</div></div>
+      <div style="flex:1"><div class="row-title">AI Recommendations</div><div class="row-sub">Powered by Cloudflare Worker — key secured on server</div></div>
     </div>
     <div class="row">
       <div style="font-size:18px">${hasSU&&hasSK?'✅':'❌'}</div>
@@ -2452,7 +2450,7 @@ function renderSettings(){
   <!-- AI Status -->
   <div class="sec-lbl">AI Recommendations</div>
   <div class="card cp" style="margin-bottom:14px">
-    <div class="ag" style="margin-bottom:0"><b>✓ Secured on server.</b> Your Anthropic key lives in Netlify environment variables — never in the browser. AI recommendations and advisor are always active.</div>
+    <div class="ag" style="margin-bottom:0"><b>✓ Secured on server.</b> Your Anthropic key lives in Cloudflare Worker secrets — never in the browser. AI recommendations and advisor are always active.</div>
   </div>
 
   <!-- Supabase -->
@@ -2474,7 +2472,7 @@ function renderSettings(){
   <div class="section">
     <div class="sec-lbl">How it works</div>
     <div class="card">
-      <div class="row"><div style="font-size:18px">🤖</div><div style="flex:1"><div class="row-title">AI Key</div><div class="row-sub">Stored in Netlify environment variables — never touches your browser</div></div></div>
+      <div class="row"><div style="font-size:18px">🤖</div><div style="flex:1"><div class="row-title">AI Key</div><div class="row-sub">Stored in Cloudflare Worker secrets — never touches your browser</div></div></div>
       <div class="row"><div style="font-size:18px">🗄️</div><div style="flex:1"><div class="row-title">Supabase URL + Key</div><div class="row-sub">Stored in this device's localStorage — needed for cloud sync</div></div></div>
       <div class="row"><div style="font-size:18px">🔒</div><div style="flex:1"><div class="row-title">Your data</div><div class="row-sub">Protected by Row Level Security — only your user ID can access it</div></div></div>
     </div>
@@ -2575,7 +2573,7 @@ async function sendMsg(){
   const input=document.getElementById('advisor-input');const text=input.value.trim();if(!text)return;
   addMsg(text,'user');advisorHistory.push({role:'user',content:text});input.value='';
   addTyping();
-  // Key is server-side via Netlify function — no client key needed
+  // Key is server-side via Cloudflare Worker — no client key needed
   const scores=computeScores();const eff=computeEff();const tIn=S.budget.income.reduce((a,r)=>a+r.amt,0);const tOut=S.budget.expenses.reduce((a,r)=>a+r.amt,0);const nw=S.nwAssets.reduce((a,v)=>a+v.val,0)-S.nwLiabilities.reduce((a,v)=>a+v.val,0);const latestCredit=S.creditScore.length?S.creditScore[S.creditScore.length-1].score:null;const lw=S.weightLog.length?S.weightLog[S.weightLog.length-1].w:215;const dk=getDK(0);const ci=S.checkins[dk]||{};
   const today=new Date();const dow=today.getDay()===0?6:today.getDay()-1;const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const systemPrompt=`You are a personal advisor embedded in a life and finance tracking PWA for a specific user. You have their real data and speak directly, honestly, and practically. No generic advice — everything references their specific numbers.
@@ -2602,9 +2600,9 @@ CURRENT DATA:
 Style: Direct, honest, specific. Short unless they ask for detail. Reference their actual numbers. Prioritize highest-leverage actions given where they actually are.`;
 
   try{
-    const res=await fetch('/netlify/functions/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
+    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,system:systemPrompt,messages:advisorHistory})});
     removeTyping();
-    if(!res.ok){addMsg('AI function error — check that ANTHROPIC_KEY is set in Netlify environment variables.','ai');return;}
+    if(!res.ok){addMsg('AI error — check that ANTHROPIC_API_KEY is set in Cloudflare Worker secrets.','ai');return;}
     const data=await res.json();const reply=data.content?.[0]?.text||'No response.';
     advisorHistory.push({role:'assistant',content:reply});addMsg(reply,'ai');
   }catch{removeTyping();addMsg('Unable to connect. Check your internet connection.','ai');}
