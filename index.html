@@ -9,9 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Blueprint">
 <meta name="theme-color" content="#060610">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="/life-blueprint/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/life-blueprint/icon.svg">
+<link rel="apple-touch-icon" href="/life-blueprint/icon.svg">
 <title>Life Blueprint</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -1722,7 +1722,7 @@ function renderBudget(){
   const catColors={needs:"var(--blue)",wants:"var(--accent)",savings:"var(--green)",other:"var(--muted)"};
   const catLabels={needs:"Needs (50%)",wants:"Wants (20%)",savings:"Savings (30%)",other:"Uncategorized"};
   document.getElementById("content").innerHTML=`
-  ${recCardHtml("finance-budget","\u{1F4B0}","This Week\'s Financial Move","AI")}
+  ${recCardHtml("finance","\u{1F4B0}","This Week\'s Financial Move","AI")}
   <div class="section">
     <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:14px">
       <div class="stat"><div class="stat-val" style="color:var(--green)">$${tIn.toLocaleString()}</div><div class="stat-lbl">Monthly In</div></div>
@@ -1845,7 +1845,7 @@ function renderBudget(){
   </div>
   <div class="alert ag"><b>Two changes = +$480/mo:</b> Groceries instead of fast food + bar to 1 night/$30. Both go straight to Savings category.</div>
   `;
-  requestAnimationFrame(()=>loadRec("finance-budget","\u{1F4B0}","Financial Move","AI",null));
+  requestAnimationFrame(()=>loadRec("finance","\u{1F4B0}","Financial Move","AI",null));
 }
 function addExp(){
   const n=document.getElementById("exp-name").value.trim();
@@ -2103,7 +2103,7 @@ function renderHouse(){
 
   const pct=tt?Math.round(td/tt*100):0;
   document.getElementById('content').innerHTML=`
-  ${recCardHtml('house-tab','🏠','Today\'s House Task Recommendation','AI · Time & priority aware')}
+  ${recCardHtml('house','🏠','Today\'s House Task Recommendation','AI · Time & priority aware')}
   <div class="section">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="flex:1"><div class="prog"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--green))"></div></div></div>
@@ -2113,7 +2113,7 @@ function renderHouse(){
     ${rooms}
   </div>
   `;
-  requestAnimationFrame(()=>loadRec('house-tab','🏠','House Task Rec','AI',null));
+  requestAnimationFrame(()=>loadRec('house','🏠','House Task Rec','AI',null));
 }
 function toggleHouse(k){S.house[k]=!S.house[k];save('house');renderHouse();}
 
@@ -2646,8 +2646,6 @@ function show(tabId){
   };
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
-  // Only update URL in browser mode, not in standalone PWA mode
-  if(history.replaceState&&!navigator.standalone)history.replaceState(null,'','/?tab='+tabId);
 }
 function renderCurrent(){show(curTab);}
 
@@ -2709,12 +2707,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
     show('dashboard');
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
-    // Show setup prompt if keys missing
-    if(!keys.hasAI){
-      setTimeout(()=>{
-        showToast('⚙ Go to Settings → Setup to enable AI','var(--gold)');
-      },2000);
-    }
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
