@@ -350,6 +350,16 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
 .mood-btn:active{transform:scale(.9);}
 .mood-btn.sel{border-color:var(--accent);background:rgba(255,85,0,.12);}
 
+/* ============================================================ SESSION CHECK-IN */
+.rating-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:12px;
+  padding:16px 10px;text-align:center;cursor:pointer;
+  transition:border-color .15s,background .15s;user-select:none;
+}
+.rating-card:active{transform:scale(.96);}
+.rating-card.sel{border-color:var(--accent);background:rgba(255,85,0,.12);}
+.ci-gate-wrap{max-width:480px;margin:0 auto;padding:24px 16px 60px;}
+
 /* ============================================================ MODALS */
 .overlay{
   display:none;position:fixed;inset:0;
@@ -550,6 +560,15 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
   </nav>
 </div>
 
+<!-- SESSION CHECK-IN GATE — fullscreen, blocks app until complete -->
+<div id="ci-gate" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);overflow-y:auto;padding-top:env(safe-area-inset-top,0px)">
+  <div class="ci-gate-wrap">
+    <div id="ci-header"></div>
+    <div id="ci-body"></div>
+    <div id="ci-footer"></div>
+  </div>
+</div>
+
 <!-- PART 2 STARTS IMMEDIATELY BELOW — NO GAP -->
 <script>
 // ============================================================
@@ -624,7 +643,7 @@ async function cloudSync(){
 // ============================================================
 const S={
   habits:ld('habits',{}), sleep:ld('sleep',{}),
-  checkins:ld('checkins',{}), calories:ld('calories',{}),
+  checkins:ld('checkins',{}), sessions:ld('sessions',{}), calories:ld('calories',{}),
   income:ld('income',[]), weightLog:ld('weightLog',[]),
   notes:ld('notes',[]), reviews:ld('reviews',{}),
   weeklyPlans:ld('weeklyPlans',{}), plan:ld('plan',{}),
@@ -1265,67 +1284,244 @@ function renderDashboard(){
 function quickLog(k){S.habits[k]=(S.habits[k]||0)+1;if(S.habits[k]>2)S.habits[k]=0;save('habits');saveEffHistory();renderDashboard();}
 
 // ============================================================
-// RENDER: CHECK-IN
+// SESSION CHECK-IN SYSTEM
+// ============================================================
+const SESSION_QUESTIONS={
+  morning:[
+    {key:'sleep',q:'How did you sleep and how are you waking up today?'},
+    {key:'energy_mood',q:"What's your energy and mood right now?"},
+    {key:'intention',q:"What's your #1 intention today — what does a win look like?"},
+    {key:'attention',q:'What area of your life needs the most attention and why?'},
+    {key:'friction',q:"Any friction or obstacles you're likely to face today?"},
+    {key:'rating',type:'rating',q:'Rate this morning'},
+  ],
+  midday:[
+    {key:'body',q:'Energy and body check — how are you feeling physically right now?'},
+    {key:'food_water',q:'Food and water so far today — eating well and staying hydrated?'},
+    {key:'intention_track',q:'How is your morning intention going — on track or drifting?'},
+    {key:'distraction',q:'What has been your biggest distraction or time drain?'},
+    {key:'focus_rest',q:"What's your focus for the rest of the day?"},
+    {key:'rating',type:'rating',q:'Rate this midday'},
+  ],
+  evening:[
+    {key:'vs_plan',q:'How did your day actually go vs what you planned this morning?'},
+    {key:'showed_up',q:'Where did you show up well today?'},
+    {key:'fell_short',q:'Where did you fall short and why — be honest?'},
+    {key:'money',q:'What did money look like today — spending, saving, decisions?'},
+    {key:'body',q:'Body check — food, water, movement, alcohol?'},
+    {key:'progress',q:'Project/goal progress — did you move your main thing forward?'},
+    {key:'tomorrow',q:'What do you want to do differently tomorrow?'},
+    {key:'rating',type:'rating',q:'Rate this evening'},
+  ],
+};
+const RATINGS=[
+  {val:'firing',icon:'🔥',label:'Firing',sub:'fully locked in'},
+  {val:'moving',icon:'⚡',label:'Moving',sub:'good momentum'},
+  {val:'coasting',icon:'🌊',label:'Coasting',sub:'getting by'},
+  {val:'drifting',icon:'🍃',label:'Drifting',sub:'losing focus'},
+  {val:'stalling',icon:'⚠️',label:'Stalling',sub:'stuck'},
+  {val:'crashed',icon:'💥',label:'Crashed',sub:'rough day'},
+  {val:'flatline',icon:'💀',label:'Flatline',sub:'complete derailment'},
+];
+const SESSION_LABELS={morning:'Morning Plan',midday:'Midday Check-In',evening:'Evening Review'};
+const SESSION_EMOJIS={morning:'☀️',midday:'⚡',evening:'🌙'};
+let ciSession=null;
+
+function checkSessionTrigger(){
+  const h=new Date().getHours();
+  const dk=getDK(0);
+  if(!S.sessions[dk])S.sessions[dk]={};
+  const s=S.sessions[dk];
+  let type=null;
+  if(h>=18&&!s.evening)type='evening';
+  else if(h>=12&&!s.midday)type='midday';
+  else if(h>=6&&!s.morning)type='morning';
+  if(type)startSession(type);
+}
+
+function startSession(type){
+  ciSession={type,step:0,answers:{},selectedRating:null};
+  document.getElementById('ci-gate').style.display='block';
+  renderStep();
+}
+
+function renderStep(){
+  const qs=SESSION_QUESTIONS[ciSession.type];
+  const step=ciSession.step;
+  const cur=qs[step];
+  const total=qs.length;
+  document.getElementById('ci-header').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)">${SESSION_EMOJIS[ciSession.type]} ${SESSION_LABELS[ciSession.type]}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${step+1} / ${total}</div>
+    </div>
+    <div style="background:var(--dim);border-radius:4px;height:3px;margin-bottom:28px">
+      <div style="background:var(--accent);border-radius:4px;height:3px;width:${Math.round((step+1)/total*100)}%;transition:width .3s"></div>
+    </div>`;
+  if(cur.type==='rating'){
+    document.getElementById('ci-body').innerHTML=`
+      <div style="font-family:'Barlow',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:24px;line-height:1.4">${cur.q}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${RATINGS.map((r,i)=>`<div class="rating-card${ciSession.selectedRating===r.val?' sel':''}" onclick="selectRating('${r.val}')" style="${i===6?'grid-column:span 2':''}">
+          <div style="font-size:28px;margin-bottom:4px">${r.icon}</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px">${r.label}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px">${r.sub}</div>
+        </div>`).join('')}
+      </div>`;
+  } else {
+    const saved=ciSession.answers[cur.key]||'';
+    document.getElementById('ci-body').innerHTML=`
+      <div style="font-family:'Barlow',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:20px;line-height:1.4">${cur.q}</div>
+      <textarea id="ci-ans" rows="5" style="width:100%;background:var(--surface);border:1px solid var(--dim);border-radius:10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;padding:14px;resize:none;line-height:1.5;box-sizing:border-box" placeholder="Be honest — this is just for you..." autocomplete="off">${saved}</textarea>`;
+    setTimeout(()=>{const el=document.getElementById('ci-ans');if(el)el.focus();},80);
+  }
+  const isLast=step===total-1;
+  document.getElementById('ci-footer').innerHTML=`
+    <div style="margin-top:24px">
+      ${step>0?`<button onclick="ciPrev()" style="background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:8px 0;cursor:pointer;text-decoration:underline">← back</button>`:''}
+      <button onclick="ciNext()" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-top:8px">${isLast?'Complete ✓':'Next →'}</button>
+    </div>`;
+}
+
+function selectRating(val){
+  ciSession.selectedRating=val;
+  document.querySelectorAll('.rating-card').forEach(c=>c.classList.remove('sel'));
+  const cards=document.querySelectorAll('.rating-card');
+  const idx=RATINGS.findIndex(r=>r.val===val);
+  if(cards[idx])cards[idx].classList.add('sel');
+}
+
+function ciPrev(){
+  const cur=SESSION_QUESTIONS[ciSession.type][ciSession.step];
+  if(cur.type!=='rating'){const el=document.getElementById('ci-ans');if(el)ciSession.answers[cur.key]=el.value;}
+  ciSession.step--;
+  ciSession.selectedRating=ciSession.answers[SESSION_QUESTIONS[ciSession.type][ciSession.step]?.key]||null;
+  renderStep();
+}
+
+function ciNext(){
+  const qs=SESSION_QUESTIONS[ciSession.type];
+  const cur=qs[ciSession.step];
+  if(cur.type==='rating'){
+    if(!ciSession.selectedRating){showToast('Pick a rating','var(--gold)');return;}
+    ciSession.answers[cur.key]=ciSession.selectedRating;
+  } else {
+    const el=document.getElementById('ci-ans');
+    ciSession.answers[cur.key]=(el?el.value:'').trim();
+  }
+  if(ciSession.step===qs.length-1){finishSession();}
+  else{ciSession.step++;renderStep();}
+}
+
+async function finishSession(){
+  const dk=getDK(0);
+  if(!S.sessions[dk])S.sessions[dk]={};
+  S.sessions[dk][ciSession.type]={...ciSession.answers,ts:Date.now()};
+  sv('sessions',S.sessions);
+  // Bridge to legacy checkins so rest of app still gets energy/priority
+  if(ciSession.type==='morning'){
+    if(!S.checkins[dk])S.checkins[dk]={};
+    if(ciSession.answers.intention)S.checkins[dk].priority=ciSession.answers.intention;
+    if(ciSession.answers.friction)S.checkins[dk].obstacle=ciSession.answers.friction;
+    save('checkins');
+  }
+  // Supabase sync
+  if(!CFG.SUPABASE_URL.includes('PASTE')){
+    try{
+      await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data`,{
+        method:'POST',
+        headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+        body:JSON.stringify({user_id:CFG.USER_ID,data_key:'sessions',data_value:JSON.stringify(S.sessions),updated_at:new Date().toISOString()}),
+      });
+    }catch{}
+  }
+  // Show loading
+  document.getElementById('ci-header').innerHTML='';
+  document.getElementById('ci-footer').innerHTML='';
+  document.getElementById('ci-body').innerHTML=`
+    <div style="text-align:center;padding:60px 0 40px">
+      <div style="font-size:40px;margin-bottom:14px">✓</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--green);margin-bottom:8px">${SESSION_LABELS[ciSession.type]} Complete</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">Generating your summary...</div>
+    </div>`;
+  const summary=await generateSessionSummary(ciSession.type,ciSession.answers);
+  const ratingObj=RATINGS.find(r=>r.val===ciSession.answers.rating)||{};
+  document.getElementById('ci-body').innerHTML=`
+    <div style="padding:8px 0">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px">${SESSION_EMOJIS[ciSession.type]} ${SESSION_LABELS[ciSession.type]} Summary</div>
+      <div style="font-family:'Barlow',sans-serif;font-size:16px;color:var(--text);line-height:1.7;margin-bottom:20px">${summary}</div>
+      ${ratingObj.val?`<div style="padding:12px 14px;background:rgba(255,85,0,.08);border:1px solid rgba(255,85,0,.2);border-radius:10px;margin-bottom:28px">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Your rating</div>
+        <div style="font-size:22px;font-family:'Barlow Condensed',sans-serif;font-weight:700">${ratingObj.icon} ${ratingObj.label} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);font-weight:400">${ratingObj.sub}</span></div>
+      </div>`:''}
+      <button onclick="closeSession()" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Enter Blueprint →</button>
+    </div>`;
+}
+
+function closeSession(){
+  document.getElementById('ci-gate').style.display='none';
+  ciSession=null;
+}
+
+async function generateSessionSummary(type,answers){
+  const lines=Object.entries(answers).filter(([k])=>k!=='rating').map(([k,v])=>`${k}: ${v}`).join('\n');
+  const prompt=`You are a brief, warm, direct life coach. The user just completed their ${type} check-in. Their answers:\n\n${lines}\n\nWrite 2-3 sentences personalized to exactly what they said. Be specific, not generic. Direct and honest tone. No headers or bullet points — just the response.`;
+  try{
+    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:200,messages:[{role:'user',content:prompt}]}),
+    });
+    if(!res.ok)return'Session saved. Keep moving.';
+    const data=await res.json();
+    return data.content?.[0]?.text||'Session saved. Keep moving.';
+  }catch{return'Session saved. Keep moving.';}
+}
+
+// ============================================================
+// RENDER: CHECK-IN (history view — sessions are captured by the gate)
 // ============================================================
 function renderCheckin(){
-  const dk=getDK(S.checkinDay);const ex=S.checkins[dk]||{};
+  const dk=getDK(0);
+  const todaySessions=S.sessions[dk]||{};
+  const sessionTypes=['morning','midday','evening'];
+  const done=sessionTypes.filter(t=>todaySessions[t]);
+  const pending=sessionTypes.filter(t=>!todaySessions[t]);
+  const h=new Date().getHours();
+  const available=pending.filter(t=>(t==='morning'&&h>=6)||(t==='midday'&&h>=12)||(t==='evening'&&h>=18));
   document.getElementById('content').innerHTML=`
-  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase">${fmtDay(S.checkinDay)}</div>
-    <div style="display:flex;gap:7px">
-      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay--;save('checkinDay');renderCheckin()">←</button>
-      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay=0;save('checkinDay');renderCheckin()">Today</button>
-      <button class="btn btn-sm btn-ghost" onclick="S.checkinDay++;save('checkinDay');renderCheckin()">→</button>
-    </div>
+  <div style="padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">Daily Check-In</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:20px">Three sessions per day — morning, midday, evening</div>
   </div>
-  <div class="section">
-    <div class="sec-lbl">☀ Morning — Set the Day</div>
-    <div class="card cp">
-      <div class="fl"><div class="fl-lbl">Energy right now (1–10)</div>
-        <input type="range" id="ci-energy" min="1" max="10" value="${ex.energy||5}">
-        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>depleted</span><span>okay</span><span>energized</span></div>
+  ${available.length?`<div class="section"><div class="sec-lbl">Available Now</div>${available.map(t=>`
+    <button class="btn btn-full" style="margin-bottom:8px;background:var(--accent)" onclick="startSession('${t}')">
+      ${SESSION_EMOJIS[t]} Start ${SESSION_LABELS[t]}
+    </button>`).join('')}</div>`:''}
+  ${done.length?`<div class="section"><div class="sec-lbl">Today — Completed</div>${done.map(t=>{
+    const s=todaySessions[t];
+    const ratingObj=RATINGS.find(r=>r.val===s.rating)||{};
+    return`<div class="card cp" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent)">${SESSION_EMOJIS[t]} ${SESSION_LABELS[t]}</div>
+        ${ratingObj.val?`<div style="font-family:'DM Mono',monospace;font-size:11px">${ratingObj.icon} ${ratingObj.label}</div>`:''}
       </div>
-      <div class="fl"><div class="fl-lbl">Mood</div>
-        <div class="mood-row">${['😫','😕','😐','🙂','😄'].map((m,i)=>`<div class="mood-btn ${ex.mood==i+1?'sel':''}" onclick="setMood(${i+1},'${dk}')">${m}</div>`).join('')}</div>
+      ${Object.entries(s).filter(([k])=>k!=='rating'&&k!=='ts').slice(0,2).map(([k,v])=>`
+        <div style="margin-bottom:6px"><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${k.replace(/_/g,' ')}</div>
+        <div style="font-size:12px;color:var(--soft)">${v}</div></div>`).join('')}
+    </div>`;}).join('')}</div>`:''}
+  <div class="section"><div class="sec-lbl">Recent History</div>
+  ${Object.entries(S.sessions).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).map(([date,day])=>`
+    <div class="card cp" style="margin-bottom:8px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px">${date}</div>
+      <div style="display:flex;gap:10px">
+        ${['morning','midday','evening'].map(t=>day[t]?`<div style="flex:1;text-align:center">
+          <div style="font-size:14px">${SESSION_EMOJIS[t]}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${day[t].rating?RATINGS.find(r=>r.val===day[t].rating)?.icon||'':'–'}</div>
+        </div>`:`<div style="flex:1;text-align:center;opacity:.25"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div></div>`).join('')}
       </div>
-      <div class="fl"><div class="fl-lbl">Today's #1 Priority (one thing only)</div><input type="text" id="ci-priority" value="${ex.priority||''}" placeholder="The one thing that makes today a win..."></div>
-      <div class="fl"><div class="fl-lbl">What could get in the way?</div><input type="text" id="ci-obstacle" value="${ex.obstacle||''}" placeholder="Be specific about the likely resistance..."></div>
-    </div>
+    </div>`).join('')}
   </div>
-  <div class="section">
-    <div class="sec-lbl">🌙 Evening — Close the Day</div>
-    <div class="card cp">
-      <div class="fl"><div class="fl-lbl">Today's biggest win</div><input type="text" id="ci-win" value="${ex.win||''}" placeholder="Something you did, avoided, or chose well..."></div>
-      <div class="fl"><div class="fl-lbl">One thing to do differently tomorrow</div><input type="text" id="ci-improve" value="${ex.improve||''}" placeholder="Specific and actionable..."></div>
-      <div class="fl"><div class="fl-lbl">Honest score for today (1–10)</div>
-        <input type="range" id="ci-score" min="1" max="10" value="${ex.score||5}">
-        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px"><span>rough</span><span>okay</span><span>great</span></div>
-      </div>
-      <button class="btn btn-full" onclick="saveCheckin('${dk}')">Save Check-In</button>
-    </div>
-  </div>
-  ${Object.entries(S.checkins).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,5).map(([k,v])=>`
-  <div class="card cp" style="margin-top:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${k}</div>
-      <div style="display:flex;gap:8px;align-items:center">${v.mood?`<span style="font-size:16px">${['😫','😕','😐','🙂','😄'][(v.mood||3)-1]}</span>`:''} ${v.score?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${sc(v.score*10)}">${v.score}/10</span>`:''}</div>
-    </div>
-    ${v.priority?`<div style="font-size:12px;margin-bottom:3px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1px">Priority </span>${v.priority}</div>`:''}
-    ${v.win?`<div style="font-size:12px"><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:1px">Win </span>${v.win}</div>`:''}
-  </div>`).join('')}
   `;
-}
-function setMood(val,dk){if(!S.checkins[dk])S.checkins[dk]={};S.checkins[dk].mood=val;save('checkins');renderCheckin();}
-function saveCheckin(dk){
-  if(!S.checkins[dk])S.checkins[dk]={};
-  const g=id=>document.getElementById(id);
-  S.checkins[dk].energy=parseInt(g('ci-energy').value)||5;
-  S.checkins[dk].priority=g('ci-priority').value;
-  S.checkins[dk].obstacle=g('ci-obstacle').value;
-  S.checkins[dk].win=g('ci-win').value;
-  S.checkins[dk].improve=g('ci-improve').value;
-  S.checkins[dk].score=parseInt(g('ci-score').value)||5;
-  save('checkins');saveEffHistory();renderCheckin();showToast('✓ Check-in saved');
 }
 
 // ============================================================
@@ -2707,12 +2903,19 @@ window.addEventListener('DOMContentLoaded',async()=>{
     show('dashboard');
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
+    checkSessionTrigger();
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
   }catch(err){
     console.error('Init error:',err);
     try{navGroup('today');show('dashboard');updateTopbar();}catch(e){}
+  }
+});
+// Re-check sessions when user returns to the app after backgrounding
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&!ciSession){
+    checkSessionTrigger();
   }
 });
 </script>
