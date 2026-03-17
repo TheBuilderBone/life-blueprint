@@ -2707,6 +2707,12 @@ window.addEventListener('DOMContentLoaded',async()=>{
     show('dashboard');
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
+    // Show setup prompt if keys missing
+    if(!keys.hasAI){
+      setTimeout(()=>{
+        showToast('⚙ Go to Settings → Setup to enable AI','var(--gold)');
+      },2000);
+    }
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
