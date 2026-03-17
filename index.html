@@ -2647,7 +2647,7 @@ function show(tabId){
   if(renders[tabId])renders[tabId]();
   document.getElementById('main').scrollTop=0;
   // Only update URL in browser mode, not in standalone PWA mode
-  if(history.replaceState&&!navigator.standalone)history.replaceState(null,'','/?tab='+tabId);
+  // URL update removed — caused 404 on refresh with GitHub Pages
 }
 function renderCurrent(){show(curTab);}
 
