@@ -544,6 +544,7 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
   <div class="topbar">
     <div class="topbar-logo">Blueprint</div>
     <div class="topbar-center" id="topbar-center">open ⚡ to start</div>
+    <div id="topbar-clock" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);flex-shrink:0;margin-right:6px"></div>
     <div class="topbar-ai" onclick="openAdvisor()" title="AI Advisor">🤖</div>
   </div>
   <div class="sub-nav" id="sub-nav"></div>
@@ -875,6 +876,20 @@ function saveEffHistory(){
   sv('effHistory',S.effHistory);
 }
 
+function formatTime12h(d){
+  const h=d.getHours(),m=d.getMinutes(),ampm=h>=12?'PM':'AM';
+  return`${h%12||12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function startClock(){
+  function tick(){
+    const t=formatTime12h(new Date());
+    const tc=document.getElementById('topbar-clock');if(tc)tc.textContent=t;
+    const dc=document.getElementById('dash-clock');if(dc)dc.textContent=t;
+  }
+  tick();
+  setInterval(tick,60000);
+}
+
 function updateTopbar(){
   const scores=computeScores();const eff=computeEff();
   const el=document.getElementById('topbar-center');
@@ -1145,6 +1160,7 @@ function renderDashboard(){
         <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">${greeting}</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;text-transform:uppercase;line-height:1;color:var(--text)">${dayNames[dow]}</div>
         <div style="font-size:13px;color:var(--soft);margin-top:3px">${today.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+        <div id="dash-clock" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:1px"></div>
       </div>
       <div style="text-align:center">
         <div style="position:relative;width:80px;height:80px">
@@ -1304,6 +1320,7 @@ const SESSION_QUESTIONS={
     {key:'rating',type:'rating',q:'Rate this midday'},
   ],
   evening:[
+    {key:'bedtime',q:'What time are you aiming to be in bed tonight and how are you feeling as the day winds down?'},
     {key:'vs_plan',q:'How did your day actually go vs what you planned this morning?'},
     {key:'showed_up',q:'Where did you show up well today?'},
     {key:'fell_short',q:'Where did you fall short and why — be honest?'},
@@ -2912,6 +2929,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     show('dashboard');
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
+    startClock();
     checkSessionTrigger();
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
