@@ -5,11 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Blueprint">
 <meta name="theme-color" content="#060610">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>Life Blueprint</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -992,13 +994,13 @@ Respond in EXACT JSON:
   };
 
   try{
+    const payload={model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:PROMPTS[type]}]};
+    console.log('[AI] getRecommendation payload:',JSON.stringify(payload));
+    if(!PROMPTS[type]){console.error('[AI] PROMPTS[type] is undefined for type:',type);return null;}
     const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',max_tokens:600,
-        messages:[{role:'user',content:PROMPTS[type]}],
-      }),
+      body:JSON.stringify(payload),
     });
     if(!res.ok){
       const errData=await res.json().catch(()=>({}));
