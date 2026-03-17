@@ -1,0 +1,20 @@
+LIFE BLUEPRINT — PROJECT STATE
+Last updated: March 2026
+
+LIVE URL: https://thebuilderbone.github.io/life-blueprint/
+AI PROXY: https://blueprint-ai.brodystanfield.workers.dev
+
+INFRASTRUCTURE:
+- GitHub Pages: hosting — working
+- Cloudflare Workers: AI proxy — working
+- Supabase: cloud sync — working
+- Anthropic: AI brain — working, credits added
+
+KNOWN ISSUES:
+- Ctrl+Shift+R hard refresh gives 404 — expected behavior, not fixable
+- F5 normal refresh works correctly
+
+NEXT SESSION GOALS:
+- Use app daily for 2 weeks
+- Page by page improvements based on real use
+- Notifications setup
