@@ -2,8 +2,8 @@
   "name": "Life Blueprint",
   "short_name": "Blueprint",
   "description": "Your daily operating system — life, habits, and finances in one place.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/life-blueprint/",
+  "scope": "/life-blueprint/",
   "display": "standalone",
   "background_color": "#080810",
   "theme_color": "#080810",
@@ -22,14 +22,14 @@
       "name": "Daily Check-In",
       "short_name": "Check-In",
       "description": "Open morning check-in",
-      "url": "/?tab=checkin",
+      "url": "/life-blueprint/?tab=checkin",
       "icons": [{ "src": "icon.svg", "sizes": "any" }]
     },
     {
       "name": "Log Calories",
       "short_name": "Calories",
       "description": "Log today's food",
-      "url": "/?tab=calories",
+      "url": "/life-blueprint/?tab=calories",
       "icons": [{ "src": "icon.svg", "sizes": "any" }]
     }
   ]
