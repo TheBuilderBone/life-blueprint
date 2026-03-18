@@ -644,13 +644,60 @@ async function cloudSync(){
     rows.forEach(row=>{
       const lt=localStorage.getItem('bp_sync_'+row.data_key);
       if(!lt||new Date(row.updated_at)>new Date(lt)){
-        localStorage.setItem('bp_'+row.data_key,row.data_value);
+        if(row.data_key==='sessions'){
+          // Merge sessions — completed sessions can never be overwritten by missed/absent
+          const remote=JSON.parse(row.data_value||'{}');
+          Object.keys(remote).forEach(dk=>{
+            if(!S.sessions[dk])S.sessions[dk]={};
+            ['morning','midday','evening'].forEach(t=>{
+              const r=remote[dk][t];const l=S.sessions[dk][t];
+              if(r&&r.ts&&(!l||l.missed||(l.ts&&r.ts>l.ts)))S.sessions[dk][t]=r;
+            });
+          });
+          sv('sessions',S.sessions);
+        } else {
+          localStorage.setItem('bp_'+row.data_key,row.data_value);
+        }
         localStorage.setItem('bp_sync_'+row.data_key,row.updated_at);
         updated=true;
       }
     });
-    if(updated){Object.keys(S).forEach(k=>{S[k]=ld(k,S[k]);});renderCurrent();updateTopbar();}
+    if(updated){Object.keys(S).forEach(k=>{if(k!=='sessions')S[k]=ld(k,S[k]);});renderCurrent();updateTopbar();}
   }catch{}
+}
+
+// Fetch sessions from Supabase before deciding whether to prompt a session.
+// Called on app open and on visibility change — must resolve before checkSessionTrigger().
+function isSessionComplete(s){return s&&!s.missed;}
+async function syncSessionsNow(){
+  if(CFG.SUPABASE_URL.includes('PASTE'))return;
+  const center=document.querySelector('.topbar-center');
+  const origHTML=center?center.innerHTML:'';
+  if(center)center.innerHTML='<span style="color:var(--muted);font-size:10px">syncing...</span>';
+  try{
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),2000);
+    const res=await fetch(
+      `${CFG.SUPABASE_URL}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&data_key=eq.sessions&select=data_value,updated_at`,
+      {headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`},signal:ctrl.signal}
+    );
+    clearTimeout(tid);
+    if(!res.ok)return;
+    const rows=await res.json();
+    if(!rows.length)return;
+    const remote=JSON.parse(rows[0].data_value||'{}');
+    let changed=false;
+    Object.keys(remote).forEach(dk=>{
+      if(!S.sessions[dk])S.sessions[dk]={};
+      ['morning','midday','evening'].forEach(t=>{
+        const r=remote[dk][t];const l=S.sessions[dk][t];
+        if(r&&r.ts&&(!l||l.missed||(l.ts&&r.ts>l.ts))){S.sessions[dk][t]=r;changed=true;}
+      });
+    });
+    if(changed){sv('sessions',S.sessions);localStorage.setItem('bp_sync_sessions',rows[0].updated_at);}
+  }catch(e){}finally{
+    if(center)center.innerHTML=origHTML;
+  }
 }
 
 // ============================================================
@@ -1155,6 +1202,7 @@ async function runMorningRecs(){
 // RENDER: DASHBOARD
 // ============================================================
 function renderDashboard(){
+  markMissedSessions();
   const scores=computeScores();const eff=computeEff();
   const dk=getDK(0);const wk=getWk(0);
   const ci=S.checkins[dk]||{};
@@ -1234,6 +1282,32 @@ function renderDashboard(){
       </div>
     </div>
   </div>
+
+  <!-- MISSED SESSION BANNERS -->
+  ${(()=>{
+    const h_=new Date().getHours();const s_=S.sessions[dk]||{};
+    const mMissed=s_.morning&&s_.morning.missed&&h_>=12;
+    const dMissed=s_.midday&&s_.midday.missed&&h_>=18;
+    if(!mMissed&&!dMissed)return'';
+    return`<div style="padding:12px 0 0">`
+      +(mMissed?`<div style="background:rgba(240,48,80,.07);border:1px solid rgba(240,48,80,.22);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-size:18px">☀️</div>
+        <div style="flex:1">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Morning plan missed</div>
+          <div style="font-size:13px;color:var(--soft)">You can still complete it now</div>
+        </div>
+        <button onclick="startSession('morning')" style="background:var(--red);border:none;border-radius:8px;color:white;font-family:'DM Mono',monospace;font-size:10px;padding:8px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">Start Now</button>
+      </div>`:'')
+      +(dMissed?`<div style="background:rgba(240,48,80,.07);border:1px solid rgba(240,48,80,.22);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-size:18px">⚡</div>
+        <div style="flex:1">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Midday check-in missed</div>
+          <div style="font-size:13px;color:var(--soft)">You can still complete it now</div>
+        </div>
+        <button onclick="startSession('midday')" style="background:var(--red);border:none;border-radius:8px;color:white;font-family:'DM Mono',monospace;font-size:10px;padding:8px 12px;cursor:pointer;white-space:nowrap;flex-shrink:0">Start Now</button>
+      </div>`:'')
+      +`</div>`;
+  })()}
 
   <!-- EFFICIENCY BREAKDOWN -->
   <div class="section">
@@ -1367,20 +1441,27 @@ const SESSION_LABELS={morning:'Morning Plan',midday:'Midday Check-In',evening:'E
 const SESSION_EMOJIS={morning:'☀️',midday:'⚡',evening:'🌙'};
 let ciSession=null;
 
+function markMissedSessions(){
+  const h=new Date().getHours();const dk=getDK(0);
+  if(!S.sessions[dk])S.sessions[dk]={};
+  const s=S.sessions[dk];let changed=false;
+  if(h>=12&&!s.morning){s.morning={missed:true,ts:Date.now()};changed=true;}
+  if(h>=18&&!s.midday){s.midday={missed:true,ts:Date.now()};changed=true;}
+  if(changed)sv('sessions',S.sessions);
+}
+
 function checkSessionTrigger(){
+  markMissedSessions();
   const h=new Date().getHours();
   const dk=getDK(0);
   if(!S.sessions[dk])S.sessions[dk]={};
   const s=S.sessions[dk];
   let type=null;
-  // Enforce sequence: each session requires the prior one to be done
-  if(h>=18&&s.midday&&!s.evening)type='evening';
-  else if(h>=12&&s.morning&&!s.midday)type='midday';
-  else if(h>=6&&!s.morning)type='morning';
+  // Enforce sequence: each session requires the prior one to be done (skips missed)
+  if(h>=18&&isSessionComplete(s.midday)&&!isSessionComplete(s.evening))type='evening';
+  else if(h>=12&&isSessionComplete(s.morning)&&!isSessionComplete(s.midday))type='midday';
+  else if(h>=6&&!isSessionComplete(s.morning))type='morning';
   if(!type)return;
-  // Only offer each session type once per page load — prevents re-trigger on
-  // tab switches and background/foreground events without blocking a true
-  // fresh open after the user dismissed without completing
   const guardKey='bp_ci_offered_'+dk+'_'+type;
   if(sessionStorage.getItem(guardKey))return;
   sessionStorage.setItem(guardKey,'1');
@@ -1502,13 +1583,48 @@ async function finishSession(){
         <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Your rating</div>
         <div style="font-size:22px;font-family:'Barlow Condensed',sans-serif;font-weight:700">${ratingObj.icon} ${ratingObj.label} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);font-weight:400">${ratingObj.sub}</span></div>
       </div>`:''}
-      <button onclick="closeSession()" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Enter Blueprint →</button>
+      <button onclick="closeSession('${ciSession.type}')" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Enter Blueprint →</button>
     </div>`;
 }
 
-function closeSession(){
-  document.getElementById('ci-gate').style.display='none';
+function closeSession(completedType){
   ciSession=null;
+  if(completedType){
+    const h=new Date().getHours();const dk=getDK(0);
+    const s=S.sessions[dk]||{};
+    let nextType=null;
+    if(completedType==='morning'&&h>=12&&!isSessionComplete(s.midday))nextType='midday';
+    else if(completedType==='midday'&&h>=18&&!isSessionComplete(s.evening))nextType='evening';
+    if(nextType){
+      // Show transition screen — gate stays open
+      const labels={morning:'Morning Plan',midday:'Midday Check-In',evening:'Evening Review'};
+      const emojis={morning:'☀️',midday:'⚡',evening:'🌙'};
+      document.getElementById('ci-header').innerHTML='';
+      document.getElementById('ci-footer').innerHTML='';
+      document.getElementById('ci-body').innerHTML=`
+        <div style="text-align:center;padding:64px 24px 40px">
+          <div style="font-size:40px;margin-bottom:10px">✓</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:6px">${labels[completedType]} Complete</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);margin-bottom:32px">${emojis[nextType]} ${labels[nextType]} is ready now</div>
+          <button onclick="startNextSession('${nextType}')" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:12px">Start ${labels[nextType]}</button>
+          <button onclick="dismissTransition('${nextType}')" style="display:block;width:100%;padding:13px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer">Not Now — I'll come back later</button>
+        </div>`;
+      return;
+    }
+  }
+  document.getElementById('ci-gate').style.display='none';
+}
+function startNextSession(type){
+  // Clear the guard so this session can be offered (guard was not set for this type yet)
+  const dk=getDK(0);
+  sessionStorage.removeItem('bp_ci_offered_'+dk+'_'+type);
+  startSession(type);
+}
+function dismissTransition(type){
+  // Set guard so visibility-change doesn't re-prompt this session immediately
+  const dk=getDK(0);
+  sessionStorage.setItem('bp_ci_offered_'+dk+'_'+type,'1');
+  document.getElementById('ci-gate').style.display='none';
 }
 
 async function generateSessionSummary(type,answers){
@@ -3483,7 +3599,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     if(tabParam){for(const[grp,tabs]of Object.entries(GROUPS)){if(tabs.some(t=>t.id===tabParam)){navGroup(grp);show(tabParam);break;}}}
     updateTopbar();saveEffHistory();
     startClock();
-    checkSessionTrigger();
+    syncSessionsNow().then(()=>checkSessionTrigger());
     setTimeout(()=>cloudSync(),2000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
@@ -3495,7 +3611,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 // Re-check sessions when user returns to the app after backgrounding
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&!ciSession){
-    checkSessionTrigger();
+    syncSessionsNow().then(()=>checkSessionTrigger());
   }
 });
 </script>

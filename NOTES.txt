@@ -1,5 +1,5 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 16 2026
+Last updated: March 17 2026
 
 ═══════════════════════════════════════
 LIVE URLS
@@ -44,18 +44,35 @@ AI:
 - Budget and house rec cards
 - AI personalized summary after each daily session
 - All AI calls go through Cloudflare Worker — key never in browser
+- AI food macro estimation (Nutrition habit card)
+- AI calorie burn estimation (Movement habit card)
 
 Daily Sessions:
 - Morning Plan — triggers after 6 AM, first open only
 - Midday Check-in — triggers after 12 PM, after morning complete
 - Evening Review — triggers after 6 PM, after midday complete
-- Each session locks app until complete — only thing you can do
 - Behavior ratings: Firing/Moving/Coasting/Drifting/Stalling/Crashed/Flatline
 - AI generates personalized 2-3 sentence summary after each session
 - References actual answers not generic advice
 - Sessions saved to bp_sessions in localStorage and synced to Supabase
 - Evening Q1 asks about bed time — not sleep (that is morning Q1)
-- Re-trigger guard via sessionStorage — sessions never repeat same day
+- Cross-device sync: Supabase fetched BEFORE session gate checks on every open
+- Transition screen after session complete: if next session is due, offers it immediately
+- Not Now on transition: dismisses gracefully, re-prompts on next app open
+- Missed session banners on dashboard: gentle nudge if morning/midday skipped
+- Missed sessions marked as {missed:true} in data — AI can reference
+
+Habits (Session 2):
+- 8 daily tracking areas in Body → Habits tab
+- Hydration: animated fill bar, quick-add buttons, custom oz input
+- Nutrition: manual + AI-assisted food logging, calorie ring + macro bars
+- Movement: AI estimates cal burned, progress bar vs target
+- Sleep V2: bedtime/wake pickers, quality, drinks, 7-day bar history
+- Financial Discipline: daily spend vs budget, weekly running total
+- Current Mission: progress slider, daily log, total hours invested
+- Mental Clarity: focus/stress sliders, 7-day trend chart
+- Time Management: follow-through tracking, weekly rate
+- All targets adjustable in Settings → Personal Targets
 
 Tabs:
 - Today: Dashboard, Check-In history, Schedule Builder
@@ -63,14 +80,14 @@ Tabs:
 - Finance: Budget (50/30/20), Credit, Net Worth, Retirement, Side Tax, Property
 - Build: House, Income, Goals, Weekly Plan, Action Plan
 - Reflect: Monthly Review, Notes, Vision, Backup
-- Settings: Setup (Supabase keys), Notifications, About
+- Settings: Setup (Supabase keys), Notifications, Personal Targets, About
 
 ═══════════════════════════════════════
 KNOWN ISSUES
 ═══════════════════════════════════════
 - Ctrl+Shift+R hard refresh gives 404 — expected GitHub Pages
   behavior, not fixable, F5 works correctly
-- Notifications not yet tested — do after Session 2
+- Notifications not yet tested
 
 ═══════════════════════════════════════
 DECISIONS MADE
@@ -78,13 +95,18 @@ DECISIONS MADE
 - Cloudflare Workers for AI — free forever, no build minutes
 - AI key server-side only — never in browser code or GitHub
 - Supabase anon key in localStorage — protected by RLS policy
-- Three daily sessions are mandatory gates — must complete to use app
+- Sessions are NOT mandatory gates anymore — missed sessions show
+  as banners (gentle nudge), user can dismiss and use app normally
 - Behavior ratings replace old streak system
 - Option B build approach — one section at a time, test each before next
 - All habit values will be adjustable in Personal Settings
 - Current Mission replaces Housing Progress — generic for any user
 - AI calorie estimation for food — type name, AI estimates macros
 - AI calorie burn estimation for exercise — based on activity and weight
+- syncSessionsNow() runs before checkSessionTrigger() on every app
+  open and visibility change — prevents cross-device re-prompting
+- cloudSync() merges sessions (completed sessions never overwritten)
+- isSessionComplete(s) = s && !s.missed — clean helper used everywhere
 
 ═══════════════════════════════════════
 COMPLETED SESSIONS
@@ -99,69 +121,34 @@ Session 1 — Daily Check-in Rebuild — COMPLETE
 - Added live clock to topbar and dashboard hero
 - All data preserved — old checkins untouched
 
+Session 2 — Habit Tracking Rebuild — COMPLETE
+- Eight habit areas: Hydration, Nutrition, Movement, Sleep,
+  Financial Discipline, Current Mission, Mental Clarity, Time Management
+- AI-assisted food and calorie-burn estimation via Cloudflare Worker
+- Animated visuals: water fill, calorie ring, macro bars, bar charts
+- Personal Targets section in Settings for all adjustable values
+- New data keys: bp_habitHydration, bp_habitNutrition, bp_habitMovement,
+  bp_habitSleepV2, bp_habitFinance, bp_habitMission, bp_habitMental,
+  bp_habitTime, bp_targets
+- Old keys bp_habits and bp_calories preserved
+
+Session 3A — Session Bug Fixes — COMPLETE
+- BUG 1 FIXED: Cross-device session sync
+  syncSessionsNow() fetches Supabase sessions before checkSessionTrigger()
+  Supabase completions override local on any device
+  cloudSync() also merges sessions safely (no overwriting completions)
+- BUG 2 FIXED: Session sequence gap
+  After completing a session, immediately checks if next is due
+  If next session is available now, shows transition screen with
+  [Start Next] and [Not Now — I'll come back later]
+- BUG 3 FIXED: Partial day handling
+  markMissedSessions() auto-marks skipped sessions after their window
+  Dashboard shows red banners for missed sessions with [Start Now]
+  Missed sessions stored as {missed:true} — not just absent
+
 ═══════════════════════════════════════
-NEXT SESSION — Session 2: Habit Tracking Rebuild
+NEXT SESSION — Session 3B or Session 4
 ═══════════════════════════════════════
-Goal: Replace current habit list with 8 simplified areas
-that track real measurable values with visual progress.
-
-Eight habit areas:
-💧 Hydration
-  - Target: 100 oz/day (adjustable)
-  - Log oz per drink throughout day
-  - Animated fill rising toward target
-  - Shows oz remaining
-
-🥗 Nutrition
-  - Target: 2300 cal, 185g P, 230g C, 70g F (adjustable)
-  - Manual input: name, calories, macros
-  - AI assisted: type food name and portion, AI estimates macros
-  - User accepts or adjusts AI estimate before logging
-  - Calorie ring + macro bars
-
-💪 Movement
-  - Input: activity type, duration, intensity
-  - AI estimates calories burned based on activity and body weight
-  - Current weight: 215 lbs (adjustable in settings)
-  - Shows cal burned, active minutes, activity log
-
-😴 Sleep
-  - Input: bedtime, wake time, quality rating, alcohol night before
-  - Shows hours slept, quality trend, alcohol correlation over time
-
-💰 Financial Discipline
-  - Input: spending decisions, amount saved, impulse purchases
-  - Shows daily spend vs budget, running weekly total
-
-🎯 Current Mission
-  - User defines project name and current milestone
-  - Input: tasks worked on today, time spent, what is next
-  - Shows overall completion and last task completed
-  - Generic — works for house, business, certification, anything
-
-🧠 Mental Clarity
-  - Input: focus level, stress level, what is occupying mind
-  - Shows 7 day trend
-
-⏰ Time Management
-  - Input: did you execute your plan, what got skipped and why
-  - Shows follow-through rate over time
-
-Personal Settings additions:
-- Water target (default 100 oz)
-- Calorie target (default 2300)
-- Macro targets P/C/F
-- Body weight (default 215 lbs)
-- Current Mission name and milestone
-- All values editable at any time
-
-Design direction:
-- Each habit card feels alive not flat
-- Water: animated fill rising as oz logged
-- Calories: ring filling toward target
-- Movement: progress bar showing cal burned
-- Clean one glance tells you where you stand
-
-After Session 2:
 - Test notifications properly
-- Session 3: Dashboard cleanup and AI summary integration
+- Dashboard cleanup and AI summary integration
+- Consider: session history view improvements
