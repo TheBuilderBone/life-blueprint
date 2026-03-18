@@ -141,6 +141,14 @@ Session 3A — Session Sync and Sequence Fixes — COMPLETE
 - Partial day data marked as missed in Supabase for AI reference
 - syncSessionsNow() runs on every app open and background return
 
+Session 3A final additions — COMPLETE
+- Edit and View Summary added to all completed sessions
+- AI summary regenerates on edit, saved to session data
+- 7-day history table replaces emoji display
+- Tapping any history row expands to show session summaries
+- Edit buttons accessible from expanded history rows
+- Missed sessions shown with red ✗ in history table
+
 ═══════════════════════════════════════
 NEXT SESSION — Session 3B: Notifications
 ═══════════════════════════════════════

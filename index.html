@@ -1698,21 +1698,51 @@ function renderCheckin(){
         <button onclick="editSession('${dk}','${t}')" style="flex:1;padding:10px 8px;background:rgba(255,85,0,.12);border:1px solid rgba(255,85,0,.3);border-radius:8px;color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:.5px">Edit →</button>
       </div>
     </div>`;}).join('')}</div>`:''}
-  <div class="section"><div class="sec-lbl">Recent History</div>
-  ${Object.entries(S.sessions).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).map(([date,day])=>`
-    <div class="card cp" style="margin-bottom:8px">
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px">${date}</div>
-      <div style="display:flex;gap:10px">
-        ${['morning','midday','evening'].map(t=>{
-          const sess=day[t];
-          if(!sess)return`<div style="flex:1;text-align:center;opacity:.2"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">—</div></div>`;
-          if(sess.missed)return`<div style="flex:1;text-align:center"><div style="font-size:14px;opacity:.4">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--red);margin-top:2px">missed</div></div>`;
-          return`<div style="flex:1;text-align:center;cursor:pointer" onclick="viewSummary('${date}','${t}')"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--green);margin-top:2px">✓</div></div>`;
-        }).join('')}
+  <div class="section"><div class="sec-lbl">7-Day History</div>
+  ${(()=>{
+    const days=Object.entries(S.sessions).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7);
+    if(!days.length)return`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);padding:14px 0">No sessions recorded yet.</div>`;
+    const cell=(date,t,s)=>{
+      if(!s)return`<div style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">—</div>`;
+      if(s.missed)return`<div style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--red)">✗</div>`;
+      return`<div style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--green);cursor:pointer" onclick="event.stopPropagation();viewSummary('${date}','${t}')">✓</div>`;
+    };
+    return`<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr 44px;padding:8px 14px;background:var(--dim)">
+        ${['Date','AM','Mid','PM','Score'].map((l,i)=>`<div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;${i>0&&i<4?'text-align:center':''}${i===4?'text-align:right':''}">${l}</div>`).join('')}
       </div>
-    </div>`).join('')}
+      ${days.map(([date,day])=>{
+        const d=new Date(date+'T12:00:00');
+        const dateLabel=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        const weekday=d.toLocaleDateString('en-US',{weekday:'short'});
+        const eff=S.effHistory?S.effHistory.find(e=>e.date===date):null;
+        const scoreCell=eff?`<div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:${effColor(eff.score)};text-align:right;line-height:1">${eff.score}</div>`:`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-align:right">—</div>`;
+        const summaries=['morning','midday','evening'].filter(t=>day[t]&&!day[t].missed&&day[t].summary).map(t=>`<div style="margin-bottom:12px"><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${SESSION_LABELS[t]}</div><div style="font-size:13px;color:var(--soft);line-height:1.6">${day[t].summary}</div></div>`).join('');
+        return`<div style="border-top:1px solid var(--border)">
+          <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr 44px;padding:11px 14px;cursor:pointer;align-items:center" onclick="toggleHistRow('${date}')">
+            <div><div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text)">${dateLabel}</div><div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:1px">${weekday}</div></div>
+            ${cell(date,'morning',day.morning)}
+            ${cell(date,'midday',day.midday)}
+            ${cell(date,'evening',day.evening)}
+            ${scoreCell}
+          </div>
+          <div id="hist-row-${date}" style="display:none;padding:14px;border-top:1px solid var(--border);background:var(--surface)">
+            ${summaries||`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">No summaries saved for this day.</div>`}
+            <div style="display:flex;gap:8px;margin-top:10px">
+              ${['morning','midday','evening'].filter(t=>day[t]&&!day[t].missed).map(t=>`<button onclick="editSession('${date}','${t}')" style="padding:7px 12px;background:rgba(255,85,0,.1);border:1px solid rgba(255,85,0,.25);border-radius:7px;color:var(--accent);font-family:'DM Mono',monospace;font-size:9px;cursor:pointer">${SESSION_EMOJIS[t]} Edit</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  })()}
   </div>
   `;
+}
+
+function toggleHistRow(date){
+  const el=document.getElementById('hist-row-'+date);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
 }
 
 // ============================================================
