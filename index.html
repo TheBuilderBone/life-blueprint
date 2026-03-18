@@ -448,6 +448,20 @@ input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer;height:va
 @keyframes spin{to{transform:rotate(360deg);}}
 .spin{animation:spin 1s linear infinite;}
 
+/* ============================================================ HABIT CARDS V2 */
+.hab-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+.hab-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.water-track{width:100%;height:44px;background:var(--dim);border-radius:10px;overflow:hidden;position:relative;margin:8px 0;}
+.water-fill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(0deg,#1664e8,rgba(61,139,255,.55));border-radius:8px 8px 0 0;transition:height .7s cubic-bezier(.4,0,.2,1);}
+.hab-quick-btns{display:flex;gap:6px;}
+.hab-qbtn{flex:1;padding:9px 4px;background:var(--dim);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;text-align:center;user-select:none;}
+.hab-qbtn:active{background:var(--lift);}
+.hab-stat{text-align:center;}
+.hab-stat-val{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;line-height:1;}
+.hab-stat-lbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+input[type=time]{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;padding:10px 12px;width:100%;outline:none;-webkit-appearance:none;appearance:none;min-height:var(--touch);}
+input[type=time]:focus{border-color:var(--accent);}
+
 /* ============================================================ DESKTOP */
 @media(min-width:600px){
   .bottom-nav{border-left:1px solid var(--border);border-right:1px solid var(--border);}
@@ -645,6 +659,15 @@ async function cloudSync(){
 const S={
   habits:ld('habits',{}), sleep:ld('sleep',{}),
   checkins:ld('checkins',{}), sessions:ld('sessions',{}), calories:ld('calories',{}),
+  habitHydration:ld('habitHydration',{}),
+  habitNutrition:ld('habitNutrition',{}),
+  habitMovement:ld('habitMovement',{}),
+  habitSleepV2:ld('habitSleepV2',{}),
+  habitFinance:ld('habitFinance',{}),
+  habitMission:ld('habitMission',{name:'My Current Project',milestone:'Define your milestone',progress:0,totalMinutes:0,entries:[]}),
+  habitMental:ld('habitMental',{}),
+  habitTime:ld('habitTime',{}),
+  targets:ld('targets',{water:100,calories:2300,protein:185,carbs:230,fat:70,bodyWeight:215,movementCal:400}),
   income:ld('income',[]), weightLog:ld('weightLog',[]),
   notes:ld('notes',[]), reviews:ld('reviews',{}),
   weeklyPlans:ld('weeklyPlans',{}), plan:ld('plan',{}),
@@ -1617,40 +1640,535 @@ async function buildSchedule(){
 }
 
 // ============================================================
-// RENDER: HABITS
+// HABIT TRACKING V2 — 8 DAILY AREAS
 // ============================================================
-function renderHabits(){
-  const wk=getWk(S.week);
-  document.getElementById('content').innerHTML=`
-  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px">
-    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--soft)">${fmtWk(wk)}</div>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-sm btn-ghost" onclick="S.week--;save('week');renderHabits()">←</button>
-      <button class="btn btn-sm btn-ghost" onclick="S.week=0;save('week');renderHabits()">Now</button>
-      <button class="btn btn-sm btn-ghost" onclick="S.week++;save('week');renderHabits()">→</button>
-    </div>
-  </div>
-  <div style="display:flex;justify-content:flex-end;gap:4px;padding-right:50px;margin:6px 0 4px">
-    ${DAYS.map(l=>`<div style="width:27px;text-align:center;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${l}</div>`).join('')}
-  </div>
-  <div class="card">
-    ${HABITS.map(h=>{
-      let done=0,logged=0;
-      const days=DAYS.map((_,di)=>{const k=`${wk}_${h.id}_${di}`;const v=S.habits[k]||0;if(v===1)done++;if(v>0)logged++;return`<div class="hday ${v===1?'done':v===2?'skip':''}" onclick="cycleH('${k}')">${v===1?'✓':v===2?'✗':''}</div>`;}).join('');
-      const streak=calcStreak(h.id);
-      const stC=streak>=21?'var(--purple)':streak>=14?'var(--green)':streak>=7?'var(--gold)':streak>=3?'var(--accent)':'var(--muted)';
-      const emoji=streak>=21?'🔥🔥🔥':streak>=14?'🔥🔥':streak>=7?'🔥':streak>=3?'⚡':'';
-      return`<div class="habit-row">
-        <div class="h-ic">${h.ic}</div>
-        <div style="flex:1;min-width:0"><div class="h-name">${h.name}</div><div class="h-why">${h.why.split('.')[0]}.</div></div>
-        <div class="h-days">${days}</div>
-        <div class="streak" style="color:${stC}">${streak>0?streak+'d':''}${emoji}</div>
+function habDK(){return getDK(0);}
+
+// HYDRATION
+function addWater(oz){
+  const dk=habDK(),h=S.habitHydration[dk]||{oz:0,log:[]};
+  h.oz=(h.oz||0)+oz;h.log=[...(h.log||[]),{oz,ts:Date.now()}];
+  S.habitHydration[dk]=h;sv('habitHydration',S.habitHydration);renderHabits();
+}
+function addWaterCustom(){
+  const el=document.getElementById('hab-water-oz'),oz=parseFloat(el?.value)||0;
+  if(oz<=0){showToast('Enter oz amount','var(--gold)');return;}
+  el.value='';addWater(oz);
+}
+
+// NUTRITION
+function addFoodManual(){
+  const dk=habDK(),nut=S.habitNutrition[dk]||{entries:[]};
+  const g=id=>document.getElementById(id);
+  const name=(g('hab-food-name')?.value||'').trim();
+  const cal=parseFloat(g('hab-food-cal')?.value)||0;
+  const prot=parseFloat(g('hab-food-prot')?.value)||0;
+  const carb=parseFloat(g('hab-food-carb')?.value)||0;
+  const fat=parseFloat(g('hab-food-fat')?.value)||0;
+  if(!name||!cal){showToast('Enter name and calories','var(--gold)');return;}
+  nut.entries.push({name,cal,prot,carb,fat,source:'manual',ts:Date.now()});
+  S.habitNutrition[dk]=nut;sv('habitNutrition',S.habitNutrition);renderHabits();
+}
+function removeFoodV2(dk,i){
+  if(!S.habitNutrition[dk])return;
+  S.habitNutrition[dk].entries.splice(i,1);
+  sv('habitNutrition',S.habitNutrition);renderHabits();
+}
+async function estimateFoodAI(){
+  const name=(document.getElementById('hab-food-ai-input')?.value||'').trim();
+  if(!name){showToast('Enter food name and portion','var(--gold)');return;}
+  const resultEl=document.getElementById('hab-food-ai-result');
+  if(resultEl)resultEl.innerHTML=`<div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);padding:8px 0">Estimating...</div>`;
+  try{
+    const prompt=`The user ate: "${name}". Return ONLY valid JSON, no other text: {"name":"cleaned description","cal":number,"prot":number,"carb":number,"fat":number}`;
+    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:120,messages:[{role:'user',content:prompt}]}),
+    });
+    if(!res.ok)throw new Error();
+    const data=await res.json();
+    const est=JSON.parse((data.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
+    window._aiEst=est;
+    if(resultEl)resultEl.innerHTML=`
+      <div style="background:var(--dim);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:8px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">${est.name}</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          ${[['cal',est.cal,'var(--gold)'],['P',est.prot+'g','var(--blue)'],['C',est.carb+'g','var(--gold)'],['F',est.fat+'g','var(--purple)']].map(([l,v,c])=>`
+          <div style="flex:1;text-align:center;background:var(--surface);border-radius:8px;padding:8px 4px">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${c}">${v}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${l}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="acceptAIFood()" style="flex:1;padding:11px;background:var(--green);border:none;border-radius:8px;color:#000;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Accept</button>
+          <button onclick="editAIFood()" style="flex:1;padding:11px;background:var(--dim);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer">Edit</button>
+        </div>
       </div>`;
-    }).join('')}
+  }catch{
+    if(resultEl)resultEl.innerHTML=`<div style="color:var(--red);font-size:12px;padding:6px 0">Estimation failed — use manual entry below</div>`;
+  }
+}
+function acceptAIFood(){
+  const est=window._aiEst;if(!est)return;
+  const dk=habDK(),nut=S.habitNutrition[dk]||{entries:[]};
+  nut.entries.push({name:est.name,cal:est.cal,prot:est.prot,carb:est.carb,fat:est.fat,source:'ai',ts:Date.now()});
+  S.habitNutrition[dk]=nut;sv('habitNutrition',S.habitNutrition);
+  window._aiEst=null;
+  const inp=document.getElementById('hab-food-ai-input');if(inp)inp.value='';
+  renderHabits();
+}
+function editAIFood(){
+  const est=window._aiEst;if(!est)return;
+  const g=id=>document.getElementById(id);
+  if(g('hab-food-name'))g('hab-food-name').value=est.name;
+  if(g('hab-food-cal'))g('hab-food-cal').value=est.cal;
+  if(g('hab-food-prot'))g('hab-food-prot').value=est.prot;
+  if(g('hab-food-carb'))g('hab-food-carb').value=est.carb;
+  if(g('hab-food-fat'))g('hab-food-fat').value=est.fat;
+  const inp=document.getElementById('hab-food-ai-input');if(inp)inp.value='';
+  const res=document.getElementById('hab-food-ai-result');if(res)res.innerHTML='';
+}
+
+// MOVEMENT
+async function addMovement(){
+  const g=id=>document.getElementById(id);
+  const activity=(g('mov-activity')?.value||'').trim();
+  const duration=parseInt(g('mov-duration')?.value)||0;
+  const intensity=g('mov-intensity')?.value||'moderate';
+  if(!activity||!duration){showToast('Enter activity and duration','var(--gold)');return;}
+  const btn=document.getElementById('mov-add-btn');
+  if(btn){btn.textContent='Estimating...';btn.disabled=true;}
+  let calBurned=0;
+  try{
+    const bw=S.targets.bodyWeight||215;
+    const prompt=`${activity}, ${duration} minutes, ${intensity} intensity, body weight ${bw} lbs. Calories burned? Return ONLY valid JSON: {"cal":number}`;
+    const res=await fetch('https://blueprint-ai.brodystanfield.workers.dev',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:60,messages:[{role:'user',content:prompt}]}),
+    });
+    if(res.ok){const d=await res.json();calBurned=JSON.parse((d.content?.[0]?.text||'').replace(/```json|```/g,'').trim()).cal||0;}
+  }catch{}
+  const dk=habDK(),mov=S.habitMovement[dk]||{entries:[]};
+  mov.entries.push({activity,duration,intensity,calBurned,ts:Date.now()});
+  S.habitMovement[dk]=mov;sv('habitMovement',S.habitMovement);
+  renderHabits();
+}
+function removeMovV2(dk,i){
+  if(!S.habitMovement[dk])return;
+  S.habitMovement[dk].entries.splice(i,1);
+  sv('habitMovement',S.habitMovement);renderHabits();
+}
+
+// SLEEP V2
+function saveSleepV2(){
+  const g=id=>document.getElementById(id);
+  const dk=habDK();
+  S.habitSleepV2[dk]={
+    bedtime:g('slv2-bed')?.value||'',
+    waketime:g('slv2-wake')?.value||'',
+    quality:parseInt(g('slv2-quality')?.value)||3,
+    drinks:g('slv2-drinks')?.value==='yes',
+    drinkCount:parseInt(g('slv2-drink-count')?.value)||0,
+    ts:Date.now()
+  };
+  sv('habitSleepV2',S.habitSleepV2);renderHabits();showToast('Sleep logged');
+}
+function calcSleepHrs(bed,wake){
+  if(!bed||!wake)return null;
+  try{
+    const[bh,bm]=bed.split(':').map(Number);
+    const[wh,wm]=wake.split(':').map(Number);
+    let m=(wh*60+wm)-(bh*60+bm);if(m<0)m+=1440;
+    return Math.round(m/60*10)/10;
+  }catch{return null;}
+}
+
+// FINANCIAL DISCIPLINE
+function addFinV2(){
+  const g=id=>document.getElementById(id);
+  const amount=parseFloat(g('fin-amount')?.value)||0;
+  const category=g('fin-cat')?.value||'Want';
+  const note=(g('fin-note')?.value||'').trim();
+  if(!amount){showToast('Enter amount','var(--gold)');return;}
+  const dk=habDK(),fin=S.habitFinance[dk]||{entries:[]};
+  fin.entries.push({amount,category,note,ts:Date.now()});
+  S.habitFinance[dk]=fin;sv('habitFinance',S.habitFinance);
+  g('fin-amount').value='';if(g('fin-note'))g('fin-note').value='';
+  renderHabits();
+}
+function removeFinV2(dk,i){
+  if(!S.habitFinance[dk])return;
+  S.habitFinance[dk].entries.splice(i,1);
+  sv('habitFinance',S.habitFinance);renderHabits();
+}
+
+// CURRENT MISSION
+function saveMissionEntry(){
+  const g=id=>document.getElementById(id);
+  const workedOn=(g('mis-worked')?.value||'').trim();
+  const duration=parseInt(g('mis-duration')?.value)||0;
+  const whatNext=(g('mis-next')?.value||'').trim();
+  if(!workedOn){showToast('Enter what you worked on','var(--gold)');return;}
+  const dk=habDK();
+  S.habitMission.entries=[...(S.habitMission.entries||[]),{dk,workedOn,duration,whatNext,ts:Date.now()}];
+  S.habitMission.totalMinutes=(S.habitMission.totalMinutes||0)+duration;
+  sv('habitMission',S.habitMission);
+  renderHabits();showToast('Progress logged');
+}
+function saveMissionProgress(){
+  const val=parseInt(document.getElementById('mis-progress')?.value)||0;
+  S.habitMission.progress=val;sv('habitMission',S.habitMission);
+  const el=document.getElementById('mis-prog-pct');if(el)el.textContent=val+'%';
+}
+
+// MENTAL CLARITY
+function saveMental(){
+  const g=id=>document.getElementById(id);
+  S.habitMental[habDK()]={
+    focus:parseInt(g('men-focus')?.value)||5,
+    stress:parseInt(g('men-stress')?.value)||5,
+    mind:(g('men-mind')?.value||'').trim(),
+    ts:Date.now()
+  };
+  sv('habitMental',S.habitMental);renderHabits();showToast('Mental log saved');
+}
+
+// TIME MANAGEMENT
+function saveTimeV2(){
+  const g=id=>document.getElementById(id);
+  S.habitTime[habDK()]={
+    followed:g('tim-followed')?.value==='yes',
+    completed:(g('tim-completed')?.value||'').trim(),
+    skipped:(g('tim-skipped')?.value||'').trim(),
+    ts:Date.now()
+  };
+  sv('habitTime',S.habitTime);renderHabits();showToast('Time log saved');
+}
+
+// SETTINGS HELPERS
+function saveTarget(field,id){
+  const val=parseFloat(document.getElementById(id)?.value)||0;
+  S.targets[field]=val;sv('targets',S.targets);showToast('✓ Target saved');
+}
+function saveMissionName(){
+  S.habitMission.name=(document.getElementById('set-mis-name')?.value||'').trim()||'My Current Project';
+  sv('habitMission',S.habitMission);showToast('✓ Saved');
+}
+function saveMissionMilestone(){
+  S.habitMission.milestone=(document.getElementById('set-mis-milestone')?.value||'').trim()||'Define your milestone';
+  sv('habitMission',S.habitMission);showToast('✓ Saved');
+}
+
+// MAIN RENDER
+function renderHabits(){
+  const dk=habDK(),t=S.targets,today=new Date();
+  // Hydration
+  const hyd=S.habitHydration[dk]||{oz:0,log:[]};
+  const hydOz=hyd.oz||0,hydTarget=t.water||100;
+  const hydPct=Math.min(100,Math.round(hydOz/hydTarget*100));
+  const hydRem=Math.max(0,hydTarget-hydOz);
+  const hydC=hydPct>=100?'var(--green)':hydPct>=60?'var(--blue)':'var(--muted)';
+  // Nutrition
+  const nut=S.habitNutrition[dk]||{entries:[]};
+  const mac={cal:0,prot:0,carb:0,fat:0};
+  nut.entries.forEach(e=>{mac.cal+=(e.cal||0);mac.prot+=(e.prot||0);mac.carb+=(e.carb||0);mac.fat+=(e.fat||0);});
+  const calTarget=t.calories||2300;
+  const calPct=Math.min(100,Math.round(mac.cal/calTarget*100));
+  const calC=mac.cal>calTarget*1.1?'var(--red)':mac.cal>calTarget?'var(--gold)':'var(--green)';
+  const calCirc=2*Math.PI*28;
+  // Movement
+  const mov=S.habitMovement[dk]||{entries:[]};
+  const movCal=mov.entries.reduce((a,e)=>a+(e.calBurned||0),0);
+  const movMins=mov.entries.reduce((a,e)=>a+(e.duration||0),0);
+  const movTarget=t.movementCal||400;
+  const movPct=Math.min(100,Math.round(movCal/movTarget*100));
+  const movC=movPct>=100?'var(--green)':movPct>=50?'var(--accent)':'var(--muted)';
+  // Sleep
+  const slp=S.habitSleepV2[dk]||{};
+  const slpHrs=calcSleepHrs(slp.bedtime,slp.waketime);
+  const slpC=slpHrs===null?'var(--muted)':slpHrs>=7.5?'var(--green)':slpHrs>=6?'var(--gold)':'var(--red)';
+  const slp7=Array.from({length:7},(_,i)=>{const s=S.habitSleepV2[getDK(i-6)]||{};return{h:calcSleepHrs(s.bedtime,s.waketime),drinks:s.drinks};});
+  // Finance
+  const fin=S.habitFinance[dk]||{entries:[]};
+  const finSpent=fin.entries.reduce((a,e)=>a+(e.amount||0),0);
+  const monthIncome=S.budget.income.reduce((a,r)=>a+r.amt,0);
+  const dailyBudget=Math.round(monthIncome/30);
+  const finPct=Math.min(100,Math.round(finSpent/dailyBudget*100));
+  const finC=finPct>=100?'var(--red)':finPct>=80?'var(--gold)':'var(--green)';
+  let weekSpent=0;for(let i=0;i<7;i++)weekSpent+=(S.habitFinance[getDK(-i)]||{entries:[]}).entries.reduce((a,e)=>a+(e.amount||0),0);
+  // Mission
+  const mis=S.habitMission,todayLog=mis.entries?.filter(e=>e.dk===dk).slice(-1)[0];
+  const totalHrs=Math.floor((mis.totalMinutes||0)/60),misPct=mis.progress||0;
+  // Mental
+  const men=S.habitMental[dk]||{};
+  const men7=Array.from({length:7},(_,i)=>S.habitMental[getDK(i-6)]||null);
+  const dayAbbr=d=>{const n=new Date();n.setDate(n.getDate()-d);return['S','M','T','W','T','F','S'][n.getDay()];};
+  // Time
+  const tim=S.habitTime[dk]||{};
+  let timDone=0,timLogged=0;
+  for(let i=0;i<7;i++){const te=S.habitTime[getDK(-i)];if(te){timLogged++;if(te.followed)timDone++;}}
+  const timPct=timLogged?Math.round(timDone/timLogged*100):0;
+  const timC=timPct>=80?'var(--green)':timPct>=50?'var(--gold)':'var(--muted)';
+
+  document.getElementById('content').innerHTML=`
+  <div style="padding-top:4px;margin-bottom:14px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase">Daily Tracking</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
+  </div>
+
+  <!-- HYDRATION -->
+  <div class="hab-card">
+    <div class="hab-title">💧 Hydration <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${hydC}">${hydOz} / ${hydTarget} oz</span></div>
+    <div class="water-track">
+      <div id="water-fill" class="water-fill" style="height:0%"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.85);pointer-events:none">${hydPct}% · ${hydRem} oz remaining</div>
+    </div>
+    <div class="hab-quick-btns">
+      <div class="hab-qbtn" onclick="addWater(8)">+8 oz</div>
+      <div class="hab-qbtn" onclick="addWater(16)">+16 oz</div>
+      <div class="hab-qbtn" onclick="addWater(32)">+32 oz</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input type="number" id="hab-water-oz" placeholder="custom oz" style="flex:1">
+      <button onclick="addWaterCustom()" class="btn btn-sm" style="flex-shrink:0;min-width:56px">Add</button>
+    </div>
+    ${(hyd.log||[]).length?`<div style="margin-top:8px;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${(hyd.log||[]).slice(-7).map(e=>'+'+e.oz+'oz').join(' · ')}</div>`:''}
+  </div>
+
+  <!-- NUTRITION -->
+  <div class="hab-card">
+    <div class="hab-title">🥗 Nutrition <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${calC}">${mac.cal} / ${calTarget} cal</span></div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div style="position:relative;width:72px;height:72px;flex-shrink:0">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle cx="36" cy="36" r="28" fill="none" stroke="var(--dim)" stroke-width="6"/>
+          <circle cx="36" cy="36" r="28" fill="none" stroke="${calC}" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="${calCirc.toFixed(1)}" stroke-dashoffset="${(calCirc*(1-calPct/100)).toFixed(1)}"
+            transform="rotate(-90 36 36)" style="transition:stroke-dashoffset .7s"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;line-height:1;color:${calC}">${calPct}%</div>
+          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted)">${calTarget-mac.cal>0?(calTarget-mac.cal)+' left':'over'}</div>
+        </div>
+      </div>
+      <div style="flex:1">
+        ${[['Protein',mac.prot,t.protein||185,'var(--blue)'],['Carbs',mac.carb,t.carbs||230,'var(--gold)'],['Fat',mac.fat,t.fat||70,'var(--purple)']].map(([l,v,tgt,c])=>`
+        <div style="margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px"><span style="color:${c}">${l}</span><span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${v}/${tgt}g</span></div>
+          <div class="prog"><div class="prog-fill" style="width:${Math.min(100,Math.round(v/tgt*100))}%;background:${c}"></div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">AI Estimate</div>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <input type="text" id="hab-food-ai-input" placeholder="e.g. grilled chicken sandwich, large" style="flex:1">
+      <button onclick="estimateFoodAI()" class="btn btn-sm" style="flex-shrink:0;min-width:80px;background:var(--accent);border-color:var(--accent)">Estimate</button>
+    </div>
+    <div id="hab-food-ai-result"></div>
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px">Manual Entry</div>
+    <div class="fl"><input type="text" id="hab-food-name" placeholder="Food name"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <input type="number" id="hab-food-cal" placeholder="Calories">
+      <input type="number" id="hab-food-prot" placeholder="Protein g">
+      <input type="number" id="hab-food-carb" placeholder="Carbs g">
+      <input type="number" id="hab-food-fat" placeholder="Fat g">
+    </div>
+    <button class="btn btn-full btn-sm" onclick="addFoodManual()">Add Food</button>
+    ${nut.entries.length?`
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+      ${nut.entries.map((e,i)=>`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--dim)">
+        <div style="flex:1">
+          <div style="font-size:13px">${e.name}${e.source==='ai'?`<span style="font-family:'DM Mono',monospace;font-size:8px;color:var(--accent);margin-left:5px">AI</span>`:''}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${e.cal}cal · ${e.prot}g P · ${e.carb}g C · ${e.fat}g F</div>
+        </div>
+        <button onclick="removeFoodV2('${dk}',${i})" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;min-height:36px">×</button>
+      </div>`).join('')}
+      <div style="padding-top:6px;text-align:right;font-family:'DM Mono',monospace;font-size:10px;color:${calC}">${mac.cal} cal · ${mac.prot}g P · ${mac.carb}g C · ${mac.fat}g F</div>
+    </div>`:''}
+  </div>
+
+  <!-- MOVEMENT -->
+  <div class="hab-card">
+    <div class="hab-title">💪 Movement <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${movC}">${movCal} / ${movTarget} cal</span></div>
+    <div style="display:flex;gap:14px;margin-bottom:10px">
+      <div class="hab-stat"><div class="hab-stat-val" style="color:var(--accent)">${movCal}</div><div class="hab-stat-lbl">cal burned</div></div>
+      <div class="hab-stat"><div class="hab-stat-val" style="font-size:26px">${movMins}</div><div class="hab-stat-lbl">active min</div></div>
+      <div class="hab-stat"><div class="hab-stat-val" style="color:${movC};font-size:26px">${movPct}%</div><div class="hab-stat-lbl">of target</div></div>
+    </div>
+    <div class="prog" style="margin-bottom:12px"><div class="prog-fill" style="width:${movPct}%;background:var(--accent)"></div></div>
+    <div class="fl"><input type="text" id="mov-activity" placeholder="Activity (Walk, Lifting, Run...)"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <input type="number" id="mov-duration" placeholder="Minutes">
+      <select id="mov-intensity">
+        <option value="light">Light</option>
+        <option value="moderate" selected>Moderate</option>
+        <option value="intense">Intense</option>
+      </select>
+    </div>
+    <button id="mov-add-btn" onclick="addMovement()" class="btn btn-full btn-sm" style="background:var(--accent);border-color:var(--accent)">Add — AI estimates cal burned</button>
+    ${mov.entries.length?`
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+      ${mov.entries.map((e,i)=>`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--dim)">
+        <div style="flex:1">
+          <div style="font-size:13px">${e.activity}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">${e.duration}min · ${e.intensity} · <span style="color:var(--accent)">${e.calBurned} cal</span></div>
+        </div>
+        <button onclick="removeMovV2('${dk}',${i})" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;min-height:36px">×</button>
+      </div>`).join('')}
+    </div>`:''}
+  </div>
+
+  <!-- SLEEP -->
+  <div class="hab-card">
+    <div class="hab-title">😴 Sleep ${slpHrs!==null?`<span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${slpC}">${slpHrs}h logged</span>`:`<span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:var(--muted)">not logged yet</span>`}</div>
+    <div style="display:flex;gap:4px;margin-bottom:12px">
+      ${slp7.map((s,i)=>`<div style="flex:1;text-align:center">
+        <div style="height:32px;background:var(--dim);border-radius:4px 4px 0 0;overflow:hidden;position:relative">
+          ${s.h!==null?`<div style="position:absolute;bottom:0;left:0;right:0;background:${s.drinks?'var(--red)':s.h>=7.5?'var(--green)':s.h>=6?'var(--gold)':'var(--blue)'};height:${Math.min(100,Math.round(s.h/9*100))}%;border-radius:3px 3px 0 0"></div>`:''}
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${s.h!==null?s.h+'h':'—'}</div>
+      </div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px">Bedtime</div>
+        <input type="time" id="slv2-bed" value="${slp.bedtime||'22:30'}">
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px">Wake time</div>
+        <input type="time" id="slv2-wake" value="${slp.waketime||'06:30'}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px">Quality 1–5</div>
+        <input type="range" min="1" max="5" id="slv2-quality" value="${slp.quality||3}">
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px">Drinks that night</div>
+        <input type="number" id="slv2-drink-count" value="${slp.drinkCount||0}" placeholder="0">
+      </div>
+    </div>
+    <div class="fl">
+      <div class="fl-lbl">Alcohol?</div>
+      <select id="slv2-drinks">
+        <option value="no" ${!slp.drinks?'selected':''}>No</option>
+        <option value="yes" ${slp.drinks?'selected':''}>Yes</option>
+      </select>
+    </div>
+    <button onclick="saveSleepV2()" class="btn btn-full btn-sm">Save Sleep</button>
+  </div>
+
+  <!-- FINANCIAL DISCIPLINE -->
+  <div class="hab-card">
+    <div class="hab-title">💰 Financial Discipline <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${finC}">$${finSpent.toFixed(0)} today</span></div>
+    <div style="display:flex;gap:14px;margin-bottom:10px">
+      <div class="hab-stat"><div class="hab-stat-val" style="color:${finC}">$${finSpent.toFixed(0)}</div><div class="hab-stat-lbl">today</div></div>
+      <div class="hab-stat"><div class="hab-stat-val" style="font-size:26px">$${dailyBudget}</div><div class="hab-stat-lbl">daily budget</div></div>
+      <div class="hab-stat"><div class="hab-stat-val" style="color:var(--muted);font-size:26px">$${weekSpent.toFixed(0)}</div><div class="hab-stat-lbl">this week</div></div>
+    </div>
+    <div class="prog" style="margin-bottom:12px"><div class="prog-fill" style="width:${finPct}%;background:${finC}"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <input type="number" id="fin-amount" placeholder="Amount $">
+      <select id="fin-cat">
+        <option value="Need">Need</option>
+        <option value="Want">Want</option>
+        <option value="Save">Save</option>
+      </select>
+    </div>
+    <div class="fl"><input type="text" id="fin-note" placeholder="What was it for?"></div>
+    <button onclick="addFinV2()" class="btn btn-full btn-sm">Log Spend</button>
+    ${fin.entries.length?`
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+      ${fin.entries.map((e,i)=>{const cc={'Need':'var(--blue)','Want':'var(--red)','Save':'var(--green)'}[e.category]||'var(--muted)';return`<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--dim)">
+        <div style="flex:1">
+          <div style="font-size:13px">${e.note||e.category}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px"><span style="color:${cc}">${e.category}</span></div>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--red);margin-right:8px">$${e.amount.toFixed(0)}</div>
+        <button onclick="removeFinV2('${dk}',${i})" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;min-height:36px">×</button>
+      </div>`}).join('')}
+    </div>`:''}
+  </div>
+
+  <!-- CURRENT MISSION -->
+  <div class="hab-card">
+    <div class="hab-title">🎯 Current Mission <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:var(--muted)">${totalHrs}h invested</span></div>
+    <div style="margin-bottom:10px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700">${mis.name||'My Current Project'}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);margin-top:2px">${mis.milestone||'Define your milestone'}</div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">Progress</div>
+        <div id="mis-prog-pct" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">${misPct}%</div>
+      </div>
+      <input type="range" id="mis-progress" min="0" max="100" value="${misPct}" oninput="saveMissionProgress()" style="width:100%;accent-color:var(--green)">
+      <div class="prog" style="margin-top:4px"><div class="prog-fill" style="width:${misPct}%;background:var(--green)"></div></div>
+    </div>
+    <div class="fl"><input type="text" id="mis-worked" value="${todayLog?.workedOn||''}" placeholder="What did you work on today?"></div>
+    <div class="fl"><input type="number" id="mis-duration" value="${todayLog?.duration||''}" placeholder="Time spent (minutes)"></div>
+    <div class="fl"><input type="text" id="mis-next" value="${todayLog?.whatNext||''}" placeholder="What is next?"></div>
+    <button onclick="saveMissionEntry()" class="btn btn-full btn-sm" style="background:var(--green);border-color:var(--green)">Log Progress</button>
+  </div>
+
+  <!-- MENTAL CLARITY -->
+  <div class="hab-card">
+    <div class="hab-title">🧠 Mental Clarity ${men.focus?`<span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:var(--purple)">Focus ${men.focus} · Stress ${men.stress}</span>`:''}
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px">
+      ${men7.map((m,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const dl=['S','M','T','W','T','F','S'][d.getDay()];return`<div style="flex:1;text-align:center">
+        <div style="height:36px;background:var(--dim);border-radius:4px;overflow:hidden;position:relative">
+          ${m?`<div style="position:absolute;bottom:0;left:0;width:50%;background:var(--blue);opacity:.85;height:${m.focus*10}%;border-radius:3px 3px 0 0"></div>
+          <div style="position:absolute;bottom:0;right:0;width:50%;background:var(--red);opacity:.7;height:${m.stress*10}%;border-radius:3px 3px 0 0"></div>`:''}
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${dl}</div>
+      </div>`}).join('')}
+    </div>
+    <div style="display:flex;gap:12px;font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:10px">
+      <span><span style="color:var(--blue)">■</span> Focus</span>
+      <span><span style="color:var(--red)">■</span> Stress</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--blue);margin-bottom:3px">Focus (1–10)</div>
+        <input type="range" id="men-focus" min="1" max="10" value="${men.focus||5}">
+      </div>
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--red);margin-bottom:3px">Stress (1–10)</div>
+        <input type="range" id="men-stress" min="1" max="10" value="${men.stress||5}">
+      </div>
+    </div>
+    <div class="fl"><input type="text" id="men-mind" value="${men.mind||''}" placeholder="What is occupying your mind most?"></div>
+    <button onclick="saveMental()" class="btn btn-full btn-sm">Save</button>
+  </div>
+
+  <!-- TIME MANAGEMENT -->
+  <div class="hab-card" style="margin-bottom:32px">
+    <div class="hab-title">⏰ Time Management <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:400;font-size:10px;color:${timC}">${timPct}% follow-through</span></div>
+    <div style="display:flex;gap:14px;margin-bottom:10px">
+      <div class="hab-stat"><div class="hab-stat-val" style="color:${timC}">${timPct}%</div><div class="hab-stat-lbl">this week</div></div>
+      ${timLogged>0?`<div class="hab-stat"><div class="hab-stat-val" style="font-size:26px">${timDone}/${timLogged}</div><div class="hab-stat-lbl">days followed</div></div>`:''}
+    </div>
+    <div class="prog" style="margin-bottom:12px"><div class="prog-fill" style="width:${timPct}%;background:${timC}"></div></div>
+    <div class="fl">
+      <div class="fl-lbl">Did you follow your plan today?</div>
+      <select id="tim-followed">
+        <option value="yes" ${tim.followed===true?'selected':''}>Yes</option>
+        <option value="no" ${tim.followed===false?'selected':''}>No</option>
+      </select>
+    </div>
+    <div class="fl"><input type="text" id="tim-completed" value="${tim.completed||''}" placeholder="What did you complete?"></div>
+    <div class="fl"><input type="text" id="tim-skipped" value="${tim.skipped||''}" placeholder="What did you skip and why?"></div>
+    <button onclick="saveTimeV2()" class="btn btn-full btn-sm">Save</button>
   </div>
   `;
+  // Animate water fill after DOM is ready
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const fill=document.getElementById('water-fill');
+    if(fill)fill.style.height=hydPct+'%';
+  }));
 }
-function cycleH(k){S.habits[k]=(S.habits[k]||0)+1;if(S.habits[k]>2)S.habits[k]=0;save('habits');saveEffHistory();renderHabits();}
 
 // ============================================================
 // RENDER: CALORIES + MEAL REC
@@ -2692,6 +3210,41 @@ function renderSettings(){
   </div>
 
   <div class="alert ay"><b>Supabase keys are stored only on this device.</b> Enter them once on each device — phone and computer separately.</div>
+
+  <!-- Personal Targets -->
+  <div class="sec-lbl" style="margin-top:18px">Personal Targets</div>
+  <div class="card cp" style="margin-bottom:14px">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">All values save immediately and affect habit tracking.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="fl" style="margin:0"><div class="fl-lbl">Water target (oz/day)</div>
+        <input type="number" id="set-water-target" value="${S.targets.water}" onchange="saveTarget('water','set-water-target')">
+      </div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Body weight (lbs)</div>
+        <input type="number" id="set-bw-target" value="${S.targets.bodyWeight}" onchange="saveTarget('bodyWeight','set-bw-target')">
+      </div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Calories/day</div>
+        <input type="number" id="set-cal-target" value="${S.targets.calories}" onchange="saveTarget('calories','set-cal-target')">
+      </div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Movement cal target</div>
+        <input type="number" id="set-movcal-target" value="${S.targets.movementCal}" onchange="saveTarget('movementCal','set-movcal-target')">
+      </div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Protein target (g)</div>
+        <input type="number" id="set-protein-target" value="${S.targets.protein}" onchange="saveTarget('protein','set-protein-target')">
+      </div>
+      <div class="fl" style="margin:0"><div class="fl-lbl">Carbs target (g)</div>
+        <input type="number" id="set-carbs-target" value="${S.targets.carbs}" onchange="saveTarget('carbs','set-carbs-target')">
+      </div>
+      <div class="fl" style="margin:0;grid-column:1/-1"><div class="fl-lbl">Fat target (g)</div>
+        <input type="number" id="set-fat-target" value="${S.targets.fat}" onchange="saveTarget('fat','set-fat-target')">
+      </div>
+    </div>
+    <div class="fl"><div class="fl-lbl">Current Mission name</div>
+      <input type="text" id="set-mis-name" value="${S.habitMission.name||'My Current Project'}" onchange="saveMissionName()">
+    </div>
+    <div class="fl"><div class="fl-lbl">Current Mission milestone</div>
+      <input type="text" id="set-mis-milestone" value="${S.habitMission.milestone||'Define your milestone'}" onchange="saveMissionMilestone()">
+    </div>
+  </div>
 
   <div class="section">
     <div class="sec-lbl">How it works</div>
