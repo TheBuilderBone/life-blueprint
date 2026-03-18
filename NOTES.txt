@@ -1,5 +1,5 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 17 2026
+Last updated: March 17 2026 (Session 3A complete)
 
 ═══════════════════════════════════════
 LIVE URLS
@@ -132,23 +132,31 @@ Session 2 — Habit Tracking Rebuild — COMPLETE
   bp_habitTime, bp_targets
 - Old keys bp_habits and bp_calories preserved
 
-Session 3A — Session Bug Fixes — COMPLETE
-- BUG 1 FIXED: Cross-device session sync
-  syncSessionsNow() fetches Supabase sessions before checkSessionTrigger()
-  Supabase completions override local on any device
-  cloudSync() also merges sessions safely (no overwriting completions)
-- BUG 2 FIXED: Session sequence gap
-  After completing a session, immediately checks if next is due
-  If next session is available now, shows transition screen with
-  [Start Next] and [Not Now — I'll come back later]
-- BUG 3 FIXED: Partial day handling
-  markMissedSessions() auto-marks skipped sessions after their window
-  Dashboard shows red banners for missed sessions with [Start Now]
-  Missed sessions stored as {missed:true} — not just absent
+Session 3A — Session Sync and Sequence Fixes — COMPLETE
+- Cross-device sync via Supabase — completing on phone prevents
+  re-prompt on computer
+- Sequence gap fixed — after session complete immediately checks
+  if next session is due
+- Missed session banners on dashboard — gentle nudge not gate
+- Partial day data marked as missed in Supabase for AI reference
+- syncSessionsNow() runs on every app open and background return
 
 ═══════════════════════════════════════
-NEXT SESSION — Session 3B or Session 4
+NEXT SESSION — Session 3B: Notifications
 ═══════════════════════════════════════
-- Test notifications properly
-- Dashboard cleanup and AI summary integration
-- Consider: session history view improvements
+Goal: Build 6 scheduled notifications that keep the user on track
+throughout the day without being annoying.
+
+Scheduled notifications:
+- 6:00 AM  — Morning Plan reminder
+- 12:00 PM — Midday check-in reminder
+- 3:00 PM  — Water check reminder
+- 7:00 PM  — Evening review reminder
+- 9:00 PM  — Missing data alert (if any session incomplete)
+- 9:30 PM  — Daily recap ready
+- Sunday 7:00 PM — Weekly recap reminder
+
+Other requirements:
+- Re-request notification permission properly (prompt if denied)
+- Test on iPhone — must open from home screen icon (PWA)
+- Notifications should only fire if that session/task is not yet done
