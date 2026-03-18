@@ -745,8 +745,16 @@ async function cloudSync(){
         updated=true;
       }
     });
-    if(totalMerged>0)showToast(`Synced — ${totalMerged} item${totalMerged!==1?'s':''} merged`,'var(--blue)');
     if(updated){
+      const KEY_LABELS={habits:'habits',calories:'nutrition',sleep:'sleep',sessions:'sessions',
+        habitHydration:'hydration',habitNutrition:'nutrition',habitMovement:'movement',
+        habitSleepV2:'sleep',habitFinance:'finance',habitMission:'mission',
+        habitMental:'clarity',habitTime:'time',budget:'finance',house:'mission progress',
+        income:'income',goals:'goals',weightLog:'weight',creditScore:'credit',
+        nwHistory:'net worth',nwAssets:'net worth',nwLiabilities:'net worth'};
+      const labelSet=[...new Set(updatedKeys.map(k=>KEY_LABELS[k]||k).filter(Boolean))];
+      const display=labelSet.slice(0,3).join(', ')+(labelSet.length>3?` +${labelSet.length-3} more`:'');
+      showToast(`↻ Synced — ${display} updated`,'var(--blue)');
       updatedKeys.forEach(k=>console.log(`[Poll] ${k} updated — re-rendering`));
       Object.keys(S).forEach(k=>{if(k!=='sessions')S[k]=ld(k,S[k]);});
       renderCurrent();updateTopbar();

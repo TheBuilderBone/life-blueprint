@@ -177,7 +177,8 @@ Session 3B/3C combined fixes — COMPLETE
 - Credit alert when Anthropic balance empty
 - 30 second background polling while app is open
 - Polling pauses when tab hidden, resumes when visible
-- Toast appears briefly when background poll finds new data
+- Sync toast names affected areas: "↻ Synced — habits, hydration updated"
+  Max 3 names then "+ X more". No toast if nothing changed.
 - Console logs all merge decisions for debugging
 - [Poll] key updated — re-rendering logged per key
 - startBackgroundPoll() runs every 30s, skips when hidden
