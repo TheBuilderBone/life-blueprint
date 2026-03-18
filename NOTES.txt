@@ -1,5 +1,5 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 17 2026 (Session 3A complete)
+Last updated: March 17 2026 (Session 3B complete)
 
 ═══════════════════════════════════════
 LIVE URLS
@@ -149,22 +149,30 @@ Session 3A final additions — COMPLETE
 - Edit buttons accessible from expanded history rows
 - Missed sessions shown with red ✗ in history table
 
-═══════════════════════════════════════
-NEXT SESSION — Session 3B: Notifications
-═══════════════════════════════════════
-Goal: Build 6 scheduled notifications that keep the user on track
-throughout the day without being annoying.
+Session 3B — Notifications — COMPLETE
+- 7 scheduled daily notifications with configurable times
+  1. 6:00 AM  — Morning Plan ready
+  2. 12:00 PM — Midday check-in
+  3. 3:00 PM  — Water check
+  4. 7:00 PM  — Evening review ready
+  5. 9:00 PM  — Missing data alert (conditional — only if data missing)
+  6. 9:30 PM  — Daily recap ready (conditional — only if evening done)
+  7. Sun 7 PM — Weekly recap
+- NOTIF_DEFS config array + getNotifSettings()/saveNotifSettings()
+- hasMissingData() checks evening session, hydration (50% target),
+  nutrition entries, movement entries
+- fireNotif(def) creates Notification with onclick routing to right tab
+- checkNotifications() runs every 60 seconds via setInterval
+- Each notification tracked by bp_notif_fired_YYYY-MM-DD_id key
+- initNotifications() shows card prompt (not browser popup) on first
+  open after 4 seconds, only if permission is default
+- Settings → Notifications: per-notification toggles, hour/min
+  inputs, last-fired timestamps, individual Test buttons
+- Permission denied: instructions to fix in iPhone Settings shown
 
-Scheduled notifications:
-- 6:00 AM  — Morning Plan reminder
-- 12:00 PM — Midday check-in reminder
-- 3:00 PM  — Water check reminder
-- 7:00 PM  — Evening review reminder
-- 9:00 PM  — Missing data alert (if any session incomplete)
-- 9:30 PM  — Daily recap ready
-- Sunday 7:00 PM — Weekly recap reminder
-
-Other requirements:
-- Re-request notification permission properly (prompt if denied)
-- Test on iPhone — must open from home screen icon (PWA)
-- Notifications should only fire if that session/task is not yet done
+═══════════════════════════════════════
+NEXT SESSION — Session 4
+═══════════════════════════════════════
+- Test notifications on iPhone from home screen icon
+- Dashboard cleanup and AI daily score improvements
+- Consider weekly recap view in Check-In tab

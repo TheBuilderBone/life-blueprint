@@ -582,6 +582,24 @@ input[type=time]:focus{border-color:var(--accent);}
     <div id="ci-body"></div>
     <div id="ci-footer"></div>
   </div>
+
+<!-- NOTIFICATION PERMISSION PROMPT -->
+<div id="notif-prompt" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.85);align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:24px 20px calc(28px + var(--safe-bottom));animation:slideUp .25s ease">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase;margin-bottom:6px">Stay on Track</div>
+    <div style="font-size:14px;color:var(--soft);line-height:1.6;margin-bottom:18px">Blueprint sends 7 daily reminders to keep you accountable — nothing spammy, just the right nudge at the right time.</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:18px">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">What you'll receive</div>
+      ${[['6:00 AM','Morning Plan ready'],['12:00 PM','Midday check-in'],['3:00 PM','Water check'],['7:00 PM','Evening review'],['9:00 PM','Missing data alert (if needed)'],['9:30 PM','Daily recap'],['Sun 7 PM','Weekly recap']].map(([t,l])=>`
+      <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);min-width:64px">${t}</div>
+        <div style="font-size:13px;color:var(--soft)">${l}</div>
+      </div>`).join('')}
+    </div>
+    <button onclick="enableNotificationsFromPrompt()" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-bottom:10px">Enable Notifications</button>
+    <button onclick="dismissNotifPrompt()" style="display:block;width:100%;padding:13px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer">Not Now</button>
+  </div>
+</div>
 </div>
 
 <!-- PART 2 STARTS IMMEDIATELY BELOW — NO GAP -->
@@ -3445,48 +3463,182 @@ function saveSupabaseKeys(){
   renderSettings();
 }
 
-function renderNotif(){
-  const perm=Notification.permission;
-  const permColor=perm==="granted"?"var(--green)":perm==="denied"?"var(--red)":"var(--gold)";
-  const permLabel=perm==="granted"?"✓ Notifications Enabled":perm==="denied"?"✗ Blocked — fix in Settings":"Not yet enabled";
-  document.getElementById("content").innerHTML=`
-  <div style="padding-top:4px">
-    <div style="font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">Notifications</div>
-    <div style="font-family:DM Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Scheduled reminders that keep you on track</div>
-  </div>
-  <div class="card cp" style="margin-bottom:12px">
-    <div style="font-family:DM Mono,monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Current Status</div>
-    <div style="font-family:Barlow Condensed,sans-serif;font-size:22px;font-weight:800;margin-bottom:10px">${permLabel}</div>
-    ${perm==="granted"
-      ?`<div class="ag"><b>On.</b> Daily reminders are set.</div>`
-      :perm==="denied"
-      ?`<div class="ar"><b>Blocked.</b> Go to iPhone Settings → Safari → Blueprint → Notifications → Allow.</div>`
-      :`<button class="btn btn-full" onclick="enableNotifications()" style="margin-bottom:10px">Enable Notifications</button><div class="ab">Tap above — iPhone will ask to allow notifications. Tap Allow.</div>`
-    }
-  </div>
-  <div class="sec-lbl">Scheduled Reminders</div>
-  <div class="card">
-    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0"></div><div style="flex:1"><div class="row-title">6:00 AM Daily</div><div class="row-sub">Morning check-in — set your priority</div></div></div>
-    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div><div style="flex:1"><div class="row-title">9:30 PM Daily</div><div class="row-sub">Evening close — log your win</div></div></div>
-    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></div><div style="flex:1"><div class="row-title">Wednesday 8:45 AM</div><div class="row-sub">House day — block starts at 9 AM</div></div></div>
-    <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div><div style="flex:1"><div class="row-title">Sunday 7:00 PM</div><div class="row-sub">Weekly planning — set intentions</div></div></div>
-  </div>
-  <div class="section"><div class="sec-lbl">Test</div><div class="card cp"><div style="font-size:13px;color:var(--muted);margin-bottom:10px">Send a test notification right now.</div><button class="btn btn-full btn-ghost" onclick="testNotification()">Send Test Notification</button></div></div>
-  `;
+// ============================================================
+// NOTIFICATION SYSTEM
+// ============================================================
+const NOTIF_DEFS=[
+  {id:'morning_plan',label:'Morning Plan',defaultHour:6,defaultMin:0,days:'daily',
+    title:'Morning Plan ready',body:'Start your day with intention — 5 minutes sets the tone for everything.',action:'morning_session'},
+  {id:'midday_checkin',label:'Midday Check-In',defaultHour:12,defaultMin:0,days:'daily',
+    title:'Midday check-in',body:'Half the day is done — how are you tracking against your morning intention?',action:'midday_session'},
+  {id:'water_check',label:'Water Check',defaultHour:15,defaultMin:0,days:'daily',
+    title:'Water check',body:'How is your hydration? Log your water and stay on target.',action:'habits'},
+  {id:'evening_review',label:'Evening Review',defaultHour:19,defaultMin:0,days:'daily',
+    title:'Evening review ready',body:'Close the day — reflect honestly and set yourself up for tomorrow.',action:'evening_session'},
+  {id:'missing_data',label:'Missing Data Alert',defaultHour:21,defaultMin:0,days:'daily',conditional:'missing',
+    title:'Missing data alert',body:'You have unlogged data today — fill in the gaps before your recap.',action:'dashboard'},
+  {id:'daily_recap',label:'Daily Recap',defaultHour:21,defaultMin:30,days:'daily',conditional:'recap',
+    title:'Daily recap ready',body:'Your daily AI report is ready — see how today scored.',action:'checkin'},
+  {id:'weekly_recap',label:'Weekly Recap',defaultHour:19,defaultMin:0,days:'sunday',
+    title:'Weekly recap',body:'The week is closing — your 7-day AI report is ready.',action:'checkin'},
+];
+
+function getNotifSettings(){return ld('notif_settings',{});}
+function saveNotifSettings(cfg){sv('notif_settings',cfg);}
+
+function hasMissingData(){
+  const dk=getDK(0);const s=S.sessions[dk]||{};
+  if(!isSessionComplete(s.evening))return true;
+  const hyd=S.habitHydration[dk];if(!hyd||!hyd.oz||(hyd.oz<(S.targets.water||100)*0.5))return true;
+  const nut=S.habitNutrition[dk];if(!nut||!nut.entries||!nut.entries.length)return true;
+  const mov=S.habitMovement[dk];if(!mov||!mov.entries||!mov.entries.length)return true;
+  return false;
+}
+
+function fireNotif(def){
+  if(Notification.permission!=='granted')return;
+  try{
+    const n=new Notification(def.title,{body:def.body,icon:'/life-blueprint/icon.svg',tag:'bp-'+def.id});
+    n.onclick=()=>{
+      window.focus();
+      if(def.action==='morning_session')startSession('morning');
+      else if(def.action==='midday_session')startSession('midday');
+      else if(def.action==='evening_session')startSession('evening');
+      else if(def.action==='habits'){navGroup('body');show('habits');}
+      else if(def.action==='checkin'){navGroup('today');show('checkin');}
+      else{navGroup('today');show('dashboard');}
+    };
+    localStorage.setItem('bp_notif_lastfired_'+def.id,Date.now().toString());
+  }catch(e){}
+}
+
+function checkNotifications(){
+  if(Notification.permission!=='granted')return;
+  const now=new Date();const h=now.getHours();const m=now.getMinutes();
+  const dow=now.getDay();const dk=getDK(0);
+  const cfg=getNotifSettings();
+  NOTIF_DEFS.forEach(def=>{
+    const c=cfg[def.id]||{enabled:true,hour:def.defaultHour,min:def.defaultMin};
+    if(!c.enabled)return;
+    if(def.days==='sunday'&&dow!==0)return;
+    const th=c.hour!==undefined?c.hour:def.defaultHour;
+    const tm=c.min!==undefined?c.min:def.defaultMin;
+    if(h!==th||m!==tm)return;
+    const firedKey='bp_notif_fired_'+dk+'_'+def.id;
+    if(localStorage.getItem(firedKey))return;
+    if(def.conditional==='missing'&&!hasMissingData())return;
+    if(def.conditional==='recap'&&(hasMissingData()||!isSessionComplete(S.sessions[dk]?.evening)))return;
+    localStorage.setItem(firedKey,'1');
+    fireNotif(def);
+  });
+}
+
+function showNotifPrompt(){
+  const el=document.getElementById('notif-prompt');
+  if(el){el.style.display='flex';}
+}
+function dismissNotifPrompt(){
+  const el=document.getElementById('notif-prompt');
+  if(el)el.style.display='none';
+  localStorage.setItem('bp_notif_prompted','1');
+}
+async function enableNotificationsFromPrompt(){
+  dismissNotifPrompt();
+  await enableNotifications();
 }
 async function enableNotifications(){
-  if(!("Notification" in window)){showToast("Not supported","var(--red)");return;}
+  if(!('Notification' in window)){showToast('Not supported on this browser','var(--red)');return;}
   try{
     const p=await Notification.requestPermission();
-    if(p==="granted"){showToast("✓ Notifications enabled","var(--green)");new Notification("Blueprint",{body:"Notifications are on. Daily reminders set.",icon:"/life-blueprint/icon-192.png"});}
-    else if(p==="denied"){showToast("Blocked — enable in iPhone Settings","var(--red)");}
-    renderNotif();
-  }catch(e){showToast("Open from home screen icon","var(--red)");}
+    if(p==='granted'){
+      showToast('✓ Notifications enabled','var(--green)');
+      new Notification('Blueprint',{body:'Daily reminders are set. You\'re all set.',icon:'/life-blueprint/icon.svg'});
+    }else if(p==='denied'){
+      showToast('Blocked — enable in iPhone Settings','var(--red)');
+    }
+    if(document.getElementById('content')?.closest('[data-tab="notif"]')||window._currentTab==='notif')renderNotif();
+  }catch(e){showToast('Open from home screen icon to enable','var(--red)');}
 }
-function testNotification(){
-  if(Notification.permission!=="granted"){showToast("Enable notifications first","var(--red)");return;}
-  new Notification("Blueprint Test",{body:"Working! Daily reminders are active.",icon:"/life-blueprint/icon-192.png"});
-  showToast("✓ Test sent","var(--green)");
+
+function testNotifById(id){
+  if(Notification.permission!=='granted'){showToast('Enable notifications first','var(--red)');return;}
+  const def=NOTIF_DEFS.find(d=>d.id===id);
+  if(!def)return;
+  fireNotif(def);
+  showToast('✓ Test sent: '+def.label,'var(--green)');
+}
+
+function saveNotifTime(id,field,val){
+  const cfg=getNotifSettings();
+  if(!cfg[id])cfg[id]={enabled:true,hour:NOTIF_DEFS.find(d=>d.id===id)?.defaultHour||6,min:NOTIF_DEFS.find(d=>d.id===id)?.defaultMin||0};
+  cfg[id][field]=parseInt(val)||0;
+  saveNotifSettings(cfg);
+}
+function toggleNotif(id,val){
+  const cfg=getNotifSettings();
+  if(!cfg[id])cfg[id]={enabled:true,hour:NOTIF_DEFS.find(d=>d.id===id)?.defaultHour||6,min:NOTIF_DEFS.find(d=>d.id===id)?.defaultMin||0};
+  cfg[id].enabled=val;
+  saveNotifSettings(cfg);
+}
+
+function renderNotif(){
+  const perm=Notification.permission;
+  const cfg=getNotifSettings();
+  const fmtTime=(h,m)=>`${h===0?12:h>12?h-12:h}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`;
+  const lastFired=(id)=>{const t=localStorage.getItem('bp_notif_lastfired_'+id);return t?new Date(parseInt(t)).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):null;};
+  document.getElementById('content').innerHTML=`
+  <div style="padding-top:4px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;text-transform:uppercase;margin-bottom:4px">Notifications</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px">Scheduled reminders — stay on track without thinking about it</div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${perm==='granted'?'var(--green)':perm==='denied'?'var(--red)':'var(--gold)'};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700">${perm==='granted'?'Notifications Enabled':perm==='denied'?'Blocked — Action Required':'Not Yet Enabled'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px">${perm==='granted'?'Daily reminders are active':perm==='denied'?'iPhone Settings → Blueprint → Notifications → Allow':'Tap below to set up reminders'}</div>
+      </div>
+    </div>
+    ${perm!=='granted'?`<button class="btn btn-full" onclick="enableNotifications()" style="margin-top:12px">${perm==='denied'?'Retry / Check Settings':'Enable Notifications'}</button>`:''}
+    ${perm==='denied'?`<div class="alert ar" style="margin-top:10px"><b>To fix on iPhone:</b> Settings → Blueprint → Notifications → Allow Notifications</div>`:''}
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="sec-lbl">Schedule</div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">
+    ${NOTIF_DEFS.map((def,i)=>{
+      const c=cfg[def.id]||{enabled:true,hour:def.defaultHour,min:def.defaultMin};
+      const on=c.enabled!==false;
+      const last=lastFired(def.id);
+      return`<div style="padding:13px 14px;${i>0?'border-top:1px solid var(--border)':''}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${on?'10':'0'}px">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600;${!on?'color:var(--muted)':''}">${def.label}${def.days==='sunday'?'  <span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--blue);background:rgba(61,139,255,.15);padding:2px 6px;border-radius:4px">SUN</span>':''}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px">${fmtTime(c.hour!==undefined?c.hour:def.defaultHour,c.min!==undefined?c.min:def.defaultMin)}${def.conditional?' · conditional':''}${last?` · last: ${last}`:''}</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0">
+            <input type="checkbox" ${on?'checked':''} onchange="toggleNotif('${def.id}',this.checked);renderNotif()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
+          </label>
+        </div>
+        ${on?`<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center">
+          <div class="fl" style="margin:0"><div class="fl-lbl">Hour (0–23)</div>
+            <input type="number" min="0" max="23" value="${c.hour!==undefined?c.hour:def.defaultHour}" onchange="saveNotifTime('${def.id}','hour',this.value);renderNotif()">
+          </div>
+          <div class="fl" style="margin:0"><div class="fl-lbl">Minute</div>
+            <input type="number" min="0" max="59" value="${c.min!==undefined?c.min:def.defaultMin}" onchange="saveNotifTime('${def.id}','min',this.value);renderNotif()">
+          </div>
+          <button onclick="testNotifById('${def.id}')" style="padding:10px 12px;background:var(--dim);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;margin-top:16px">Test</button>
+        </div>`:''}
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);line-height:1.7;padding:0 2px 16px">
+    <b style="color:var(--text)">Conditional notifications:</b> Missing Data only fires if evening session, hydration, nutrition, or movement is unlogged. Daily Recap only fires if evening is complete.
+  </div>
+  `;
 }
 function exportData(){const data={};Object.keys(localStorage).filter(k=>k.startsWith('bp_')).forEach(k=>{try{data[k]=JSON.parse(localStorage.getItem(k));}catch{data[k]=localStorage.getItem(k);}});const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`blueprint-backup-${new Date().toISOString().split('T')[0]}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✓ BACKUP DOWNLOADED','var(--green)');}
 function importData(){const file=document.getElementById('import-file').files[0];if(!file)return;if(!confirm('Overwrite all current data?'))return;const reader=new FileReader();reader.onload=e=>{try{const data=JSON.parse(e.target.result);Object.entries(data).forEach(([k,v])=>localStorage.setItem(k,JSON.stringify(v)));showToast('✓ DATA RESTORED','var(--green)');setTimeout(()=>location.reload(),1000);}catch{alert('Invalid backup file.');}};reader.readAsText(file);}
@@ -3612,18 +3764,14 @@ async function initSW(){
     navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='NAVIGATE')show(e.data.tab);});
   }catch(e){console.log('SW failed:',e);}
 }
-async function initNotifications(){
-  if(!localStorage.getItem('bp_notif_asked')&&Notification.permission==='default'){
-    localStorage.setItem('bp_notif_asked','1');
-    setTimeout(async()=>{const p=await Notification.requestPermission();if(p==='granted')showToast('✓ Notifications on','var(--blue)');},5000);
+function initNotifications(){
+  // Show permission prompt card on first open (not a browser popup)
+  if(!localStorage.getItem('bp_notif_prompted')&&'Notification' in window&&Notification.permission==='default'){
+    setTimeout(()=>showNotifPrompt(),4000);
   }
-  if(Notification.permission==='granted'){
-    const h=new Date().getHours();const dk=getDK(0);
-    if(h>=6&&h<10&&!localStorage.getItem('bp_notif_morning_'+dk)){
-      const ci=S.checkins[dk]||{};
-      if(!ci.priority){new Notification('Good morning.',{body:'Set your priority for today. Takes 30 seconds.',icon:'/life-blueprint/icon-192.png'});localStorage.setItem('bp_notif_morning_'+dk,'1');}
-    }
-  }
+  // Run check immediately then every 60 seconds
+  checkNotifications();
+  setInterval(checkNotifications,60000);
 }
 
 // ============================================================
