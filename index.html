@@ -683,8 +683,26 @@ function restoreAutoBackup(dk){
   setTimeout(()=>location.reload(),1000);
 }
 
-// Merge conflict: first (local) entry always wins; remote fills gaps only
+// Habit-aware merge helpers
+function _mergeByTs(a,b){const s=new Set((a||[]).map(e=>String(e.ts)));return[...(a||[]),...(b||[]).filter(e=>!s.has(String(e.ts)))];}
+function _mergeDays(local,remote,fn){const m={...local};Object.keys(remote).forEach(d=>{m[d]=m[d]?fn(m[d],remote[d]):remote[d];});return m;}
+const HABIT_MERGE={
+  habitHydration:(l,r)=>_mergeDays(l,r,(ld,rd)=>({...ld,oz:Math.max(ld.oz||0,rd.oz||0),log:_mergeByTs(ld.log,rd.log)})),
+  habitNutrition:(l,r)=>_mergeDays(l,r,(ld,rd)=>({...ld,entries:_mergeByTs(ld.entries,rd.entries)})),
+  habitMovement:(l,r)=>_mergeDays(l,r,(ld,rd)=>({...ld,entries:_mergeByTs(ld.entries,rd.entries)})),
+  habitSleepV2:(l,r)=>_mergeDays(l,r,(ld,rd)=>(rd.ts||0)>(ld.ts||0)?rd:ld),
+  habitFinance:(l,r)=>_mergeDays(l,r,(ld,rd)=>({...ld,entries:_mergeByTs(ld.entries,rd.entries)})),
+  habitMission:(l,r)=>{const base=(r.totalMinutes||0)>(l.totalMinutes||0)?{...r}:{...l};return{...base,entries:_mergeByTs(l.entries,r.entries)};},
+  habitMental:(l,r)=>_mergeDays(l,r,(ld,rd)=>(rd.ts||0)>(ld.ts||0)?rd:ld),
+  habitTime:(l,r)=>_mergeDays(l,r,(ld,rd)=>(rd.ts||0)>(ld.ts||0)?rd:ld),
+};
+
+// Merge conflict resolution
 function smartMerge(key,localVal,remoteVal){
+  if(HABIT_MERGE[key]){
+    try{const merged=HABIT_MERGE[key](localVal,remoteVal);console.log(`[Merge] ${key}: habit merge`);return{merged,count:1};}
+    catch(e){console.warn('[Merge] habit merge failed for',key,e);return{merged:localVal,count:0};}
+  }
   if(Array.isArray(localVal)&&Array.isArray(remoteVal)){
     const seen=new Set(localVal.map(e=>e.ts?String(e.ts):JSON.stringify(e)));
     const adds=remoteVal.filter(e=>!seen.has(e.ts?String(e.ts):JSON.stringify(e)));
@@ -695,9 +713,9 @@ function smartMerge(key,localVal,remoteVal){
     const merged={...remoteVal};let count=0;
     Object.keys(localVal).forEach(k=>{
       if(merged[k]!==undefined&&JSON.stringify(merged[k])!==JSON.stringify(localVal[k])){
-        console.log(`[Sync] ${key}[${k}]: local wins (first entry)`);count++;
+        console.log(`[Sync] ${key}[${k}]: local wins`);count++;
       }
-      merged[k]=localVal[k];// local always overwrites remote for existing keys
+      merged[k]=localVal[k];
     });
     Object.keys(remoteVal).forEach(k=>{if(localVal[k]===undefined){console.log(`[Sync] ${key}[${k}]: added from remote`);count++;}});
     return{merged,count};
@@ -728,6 +746,8 @@ async function cloudSync(){
     localStorage.setItem('bp_sync_status','ok');
     const rows=await res.json();let updated=false;let totalMerged=0;const updatedKeys=[];
     rows.forEach(row=>{
+      // Skip pull if we have a pending push — local write is fresher than remote
+      if(_pushTimers[row.data_key]){console.log('[Sync] skip pull — push pending:',row.data_key);return;}
       const lt=localStorage.getItem('bp_sync_'+row.data_key);
       if(!lt||new Date(row.updated_at)>new Date(lt)){
         updatedKeys.push(row.data_key);
@@ -1050,8 +1070,12 @@ function effColor(s){if(s>=80)return'var(--green)';if(s>=50)return'var(--gold)';
 function saveEffHistory(){
   const dk=getDK(0);const eff=computeEff();
   const existing=S.effHistory.find(e=>e.date===dk);
-  if(existing){existing.score=eff.total;}
-  else{S.effHistory.push({date:dk,score:eff.total});}
+  if(existing){
+    if(existing.score===eff.total)return;// no change — skip sv() to avoid push loop
+    existing.score=eff.total;
+  } else {
+    S.effHistory.push({date:dk,score:eff.total});
+  }
   if(S.effHistory.length>30)S.effHistory=S.effHistory.slice(-30);
   sv('effHistory',S.effHistory);
 }
