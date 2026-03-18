@@ -557,7 +557,7 @@ input[type=time]:focus{border-color:var(--accent);}
 <div class="shell">
   <div class="topbar">
     <div class="topbar-logo">Blueprint</div>
-    <div class="topbar-center" id="topbar-center">open ⚡ to start</div>
+    <div class="topbar-center" id="topbar-center"></div>
     <div id="topbar-clock" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);flex-shrink:0;margin-right:6px"></div>
     <div class="topbar-ai" onclick="openAdvisor()" title="AI Advisor">🤖</div>
   </div>
@@ -964,8 +964,8 @@ function updateTopbar(){
   const scores=computeScores();const eff=computeEff();
   const el=document.getElementById('topbar-center');
   if(!el)return;
-  if(scores.overall===null){el.innerHTML='tap <b>⚡ Today</b> to begin';}
-  else{el.innerHTML=`score <b>${scores.overall}/100</b> · streak <b>${scores.bestStreak}d${scores.bestStreak>=7?'🔥':''}</b>`;}
+  if(scores.overall!==null){el.innerHTML=`score <b>${scores.overall}/100</b> · streak <b>${scores.bestStreak}d${scores.bestStreak>=7?'🔥':''}</b>`;}
+  else{el.innerHTML='';}
 }
 
 // ============================================================
@@ -1401,31 +1401,28 @@ function quickLog(k){S.habits[k]=(S.habits[k]||0)+1;if(S.habits[k]>2)S.habits[k]
 // ============================================================
 const SESSION_QUESTIONS={
   morning:[
-    {key:'sleep',q:'How did you sleep and how are you waking up today?'},
-    {key:'energy_mood',q:"What's your energy and mood right now?"},
-    {key:'intention',q:"What's your #1 intention today — what does a win look like?"},
-    {key:'attention',q:'What area of your life needs the most attention and why?'},
-    {key:'friction',q:"Any friction or obstacles you're likely to face today?"},
-    {key:'rating',type:'rating',q:'Rate this morning'},
+    {key:'sleep',q:'How did you sleep and how are you waking up today?',ph:"Be honest — hours, quality, anything that affected it..."},
+    {key:'energy_mood',q:"What's your energy and mood right now?",ph:"First gut feeling — tired, wired, clear, anxious, ready..."},
+    {key:'intention',q:"What's your #1 intention today — what does a win look like?",ph:"The one thing that would make today a real win..."},
+    {key:'attention',q:'What area of your life needs the most attention right now and why?',ph:"What keeps nagging at you — what can't you keep ignoring..."},
+    {key:'friction',q:"Any friction or obstacles you're likely to face today?",ph:"What's likely to trip you up, derail you, or drain energy..."},
   ],
   midday:[
-    {key:'body',q:'Energy and body check — how are you feeling physically right now?'},
-    {key:'food_water',q:'Food and water so far today — eating well and staying hydrated?'},
-    {key:'intention_track',q:'How is your morning intention going — on track or drifting?'},
-    {key:'distraction',q:'What has been your biggest distraction or time drain?'},
-    {key:'focus_rest',q:"What's your focus for the rest of the day?"},
-    {key:'rating',type:'rating',q:'Rate this midday'},
+    {key:'body',q:'Energy and body check — how are you feeling physically right now?',ph:"Energy level, any tension, hunger, fatigue — full picture..."},
+    {key:'food_water',q:'Food and water so far — eating well and staying hydrated?',ph:"What you've eaten, how much water, anything you've skipped..."},
+    {key:'intention_track',q:'How is your morning intention going — on track or drifting?',ph:"Be specific — what did you do on it, what got in the way..."},
+    {key:'distraction',q:'What has been your biggest distraction or time drain today?',ph:"The thing that pulled you off track most — name it honestly..."},
+    {key:'focus_rest',q:"What's your one clear priority for the rest of the day?",ph:"One thing that actually matters — not a list, the thing..."},
   ],
   evening:[
-    {key:'bedtime',q:'What time are you aiming to be in bed tonight and how are you feeling as the day winds down?'},
-    {key:'vs_plan',q:'How did your day actually go vs what you planned this morning?'},
-    {key:'showed_up',q:'Where did you show up well today?'},
-    {key:'fell_short',q:'Where did you fall short and why — be honest?'},
-    {key:'money',q:'What did money look like today — spending, saving, decisions?'},
-    {key:'body',q:'Body check — food, water, movement, alcohol?'},
-    {key:'progress',q:'Project/goal progress — did you move your main thing forward?'},
-    {key:'tomorrow',q:'What do you want to do differently tomorrow?'},
-    {key:'rating',type:'rating',q:'Rate this evening'},
+    {key:'bedtime',q:'What time are you aiming to be in bed tonight?',ph:"Target time + how you're feeling as the day winds down..."},
+    {key:'vs_plan',q:'How did your day actually go vs what you planned this morning?',ph:"What you planned vs what actually happened — be specific..."},
+    {key:'showed_up',q:'Where did you show up well today?',ph:"Where you came through — even small wins count here..."},
+    {key:'fell_short',q:'Where did you fall short and why — be honest?',ph:"No judgment — just honest. What happened and why..."},
+    {key:'money',q:'What did money look like today — spending, saving, decisions?',ph:"Any purchases, savings, or financial decisions today — good or bad..."},
+    {key:'body',q:'Body check — food, water, movement, alcohol today?',ph:"Food, water, movement, alcohol — how did you treat your body..."},
+    {key:'progress',q:'Project/goal progress — did you move your main thing forward?',ph:"Did your main project move? What specifically did you do or skip..."},
+    {key:'tomorrow',q:'What do you want to do differently tomorrow?',ph:"One thing — specific, not vague. What will actually change..."},
   ],
 };
 const RATINGS=[
@@ -1487,23 +1484,11 @@ function renderStep(){
     <div style="background:var(--dim);border-radius:4px;height:3px;margin-bottom:28px">
       <div style="background:var(--accent);border-radius:4px;height:3px;width:${Math.round((step+1)/total*100)}%;transition:width .3s"></div>
     </div>`;
-  if(cur.type==='rating'){
-    document.getElementById('ci-body').innerHTML=`
-      <div style="font-family:'Barlow',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:24px;line-height:1.4">${cur.q}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${RATINGS.map((r,i)=>`<div class="rating-card${ciSession.selectedRating===r.val?' sel':''}" onclick="selectRating('${r.val}')" style="${i===6?'grid-column:span 2':''}">
-          <div style="font-size:28px;margin-bottom:4px">${r.icon}</div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:1px">${r.label}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px">${r.sub}</div>
-        </div>`).join('')}
-      </div>`;
-  } else {
-    const saved=ciSession.answers[cur.key]||'';
-    document.getElementById('ci-body').innerHTML=`
-      <div style="font-family:'Barlow',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:20px;line-height:1.4">${cur.q}</div>
-      <textarea id="ci-ans" rows="5" style="width:100%;background:var(--surface);border:1px solid var(--dim);border-radius:10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;padding:14px;resize:none;line-height:1.5;box-sizing:border-box" placeholder="Be honest — this is just for you..." autocomplete="off">${saved}</textarea>`;
-    setTimeout(()=>{const el=document.getElementById('ci-ans');if(el)el.focus();},80);
-  }
+  const saved=ciSession.answers[cur.key]||'';
+  document.getElementById('ci-body').innerHTML=`
+    <div style="font-family:'Barlow',sans-serif;font-size:20px;font-weight:600;color:var(--text);margin-bottom:20px;line-height:1.4">${cur.q}</div>
+    <textarea id="ci-ans" style="width:100%;min-height:120px;background:var(--surface);border:1px solid var(--dim);border-radius:10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;padding:14px;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="${cur.ph||'Be honest — this is just for you...'}" autocomplete="off">${saved}</textarea>`;
+  setTimeout(()=>{const el=document.getElementById('ci-ans');if(el)el.focus();},80);
   const isLast=step===total-1;
   document.getElementById('ci-footer').innerHTML=`
     <div style="margin-top:24px">
@@ -1531,13 +1516,8 @@ function ciPrev(){
 function ciNext(){
   const qs=SESSION_QUESTIONS[ciSession.type];
   const cur=qs[ciSession.step];
-  if(cur.type==='rating'){
-    if(!ciSession.selectedRating){showToast('Pick a rating','var(--gold)');return;}
-    ciSession.answers[cur.key]=ciSession.selectedRating;
-  } else {
-    const el=document.getElementById('ci-ans');
-    ciSession.answers[cur.key]=(el?el.value:'').trim();
-  }
+  const el=document.getElementById('ci-ans');
+  ciSession.answers[cur.key]=(el?el.value:'').trim();
   if(ciSession.step===qs.length-1){finishSession();}
   else{ciSession.step++;renderStep();}
 }
