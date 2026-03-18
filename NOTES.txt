@@ -149,7 +149,7 @@ Session 3A final additions — COMPLETE
 - Edit buttons accessible from expanded history rows
 - Missed sessions shown with red ✗ in history table
 
-Session 3B — Notifications — COMPLETE
+Session 3B/3C combined fixes — COMPLETE
 - 7 scheduled daily notifications with configurable times
   1. 6:00 AM  — Morning Plan ready
   2. 12:00 PM — Midday check-in
@@ -170,28 +170,32 @@ Session 3B — Notifications — COMPLETE
   inputs, last-fired timestamps, individual Test buttons
 - Permission denied: instructions to fix in iPhone Settings shown
 
-Session 3C — Data Integrity and Error Handling — COMPLETE
-- MERGE CONFLICT (Fix 1): cloudSync() uses smartMerge() for all
-  non-session keys. Arrays deduplicate by ts. Objects: local wins
-  for existing keys, remote fills gaps. All decisions logged to
-  console. Toast shows "X items merged" after any merge.
-- SYNC BANNER (Fix 2): Dashboard shows yellow banner if Supabase
-  keys missing (bp_sync_status=no_keys) or auth failed
-  (bp_sync_status=auth_error). Dismissable for 24h. [Settings]
-  button links directly to setup. Silence = sync working.
-- AUTO BACKUP (Fix 3): writeAutoBackup() runs after every save()
-  call (max once per minute). Writes bp_auto_backup_YYYY-MM-DD.
-  Keeps today/yesterday/2-days-ago, removes older ones.
-  Reflect → Backup shows last backup time + Restore buttons.
-  restoreAutoBackup(dk) restores from selected date snapshot.
-- CREDIT ALERT (Fix 4): getRecommendation() checks 400 errors
-  for "credit"/"billing" in message. Sets bp_ai_credits_low=1
-  and shows persistent red banner on dashboard + specific message
-  in rec cards. Clears automatically when any AI call succeeds.
+Session 3B/3C combined fixes — COMPLETE
+- Smart merge: first entry wins on conflict
+- Sync status banner when keys missing or auth fails
+- Auto backup every minute, keeps 3 days, restorable
+- Credit alert when Anthropic balance empty
+- 30 second background polling while app is open
+- Polling pauses when tab hidden, resumes when visible
+- Toast appears briefly when background poll finds new data
+- Console logs all merge decisions for debugging
+- [Poll] key updated — re-rendering logged per key
+- startBackgroundPoll() runs every 30s, skips when hidden
+- Full cloudSync() triggered on visibility restore
+- Debug tools section in Settings → Setup for testing banners
 
 ═══════════════════════════════════════
-NEXT SESSION — Session 4
+NEXT SESSION — Session 3D: AI End of Day Report
 ═══════════════════════════════════════
-- Test notifications on iPhone from home screen icon
-- Dashboard cleanup and AI daily score improvements
-- Consider weekly recap view in Check-In tab
+Goal: Full daily synthesis after evening review
+
+Features:
+- Full daily synthesis after evening review complete
+- All data points: sessions, hydration, nutrition,
+  movement, sleep, finance, mission, clarity, time
+- Brutally honest constructive tone
+- Missing data prompt before recap
+- Partial recap if evening incomplete
+- Next morning shows yesterday recap card on dashboard
+- Weekly synthesis every Sunday evening
+- Score 0-100 calculated from actual data

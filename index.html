@@ -716,10 +716,11 @@ async function cloudSync(){
       return;
     }
     localStorage.setItem('bp_sync_status','ok');
-    const rows=await res.json();let updated=false;let totalMerged=0;
+    const rows=await res.json();let updated=false;let totalMerged=0;const updatedKeys=[];
     rows.forEach(row=>{
       const lt=localStorage.getItem('bp_sync_'+row.data_key);
       if(!lt||new Date(row.updated_at)>new Date(lt)){
+        updatedKeys.push(row.data_key);
         if(row.data_key==='sessions'){
           const remote=JSON.parse(row.data_value||'{}');
           Object.keys(remote).forEach(dk=>{
@@ -745,7 +746,11 @@ async function cloudSync(){
       }
     });
     if(totalMerged>0)showToast(`Synced — ${totalMerged} item${totalMerged!==1?'s':''} merged`,'var(--blue)');
-    if(updated){Object.keys(S).forEach(k=>{if(k!=='sessions')S[k]=ld(k,S[k]);});renderCurrent();updateTopbar();}
+    if(updated){
+      updatedKeys.forEach(k=>console.log(`[Poll] ${k} updated — re-rendering`));
+      Object.keys(S).forEach(k=>{if(k!=='sessions')S[k]=ld(k,S[k]);});
+      renderCurrent();updateTopbar();
+    }
   }catch(e){
     console.error('[Sync] cloudSync error:',e);
     localStorage.setItem('bp_sync_status','error');
@@ -3570,6 +3575,19 @@ function renderSettings(){
       <div class="row"><div style="font-size:18px">🔒</div><div style="flex:1"><div class="row-title">Your data</div><div class="row-sub">Protected by Row Level Security — only your user ID can access it</div></div></div>
     </div>
   </div>
+
+  <!-- DEBUG TOOLS -->
+  <div class="section">
+    <div class="sec-lbl" style="color:var(--muted)">Debug Tools</div>
+    <div class="card" style="border-color:var(--dim)">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Test Only — not visible to normal users</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="testSyncBanner('no_keys')" style="padding:8px 12px;background:rgba(240,160,0,.1);border:1px solid rgba(240,160,0,.3);border-radius:7px;color:var(--gold);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Test: No Keys Banner</button>
+        <button onclick="testSyncBanner('auth_error')" style="padding:8px 12px;background:rgba(240,160,0,.1);border:1px solid rgba(240,160,0,.3);border-radius:7px;color:var(--gold);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Test: Auth Error Banner</button>
+        <button onclick="testSyncBanner('ok')" style="padding:8px 12px;background:var(--dim);border:1px solid var(--border);border-radius:7px;color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Clear Banner</button>
+      </div>
+    </div>
+  </div>
   `;
 }
 
@@ -3587,6 +3605,11 @@ function saveSupabaseKeys(){
   CFG.SUPABASE_KEY=key;
   showToast('✓ Sync keys saved','var(--green)');
   renderSettings();
+}
+function testSyncBanner(status){
+  localStorage.setItem('bp_sync_status',status);
+  navGroup('today');show('dashboard');
+  showToast('Sync banner set to: '+status,'var(--gold)');
 }
 
 // ============================================================
@@ -3931,6 +3954,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     startClock();
     syncSessionsNow().then(()=>checkSessionTrigger());
     setTimeout(()=>cloudSync(),2000);
+    setTimeout(()=>startBackgroundPoll(),5000);
     setTimeout(()=>initNotifications(),3000);
     setTimeout(()=>runMorningRecs(),4000);
   }catch(err){
@@ -3938,10 +3962,20 @@ window.addEventListener('DOMContentLoaded',async()=>{
     try{navGroup('today');show('dashboard');updateTopbar();}catch(e){}
   }
 });
-// Re-check sessions when user returns to the app after backgrounding
+// Background data polling — 30 second interval, pauses when tab hidden
+let _pollInterval=null;
+function startBackgroundPoll(){
+  if(_pollInterval)clearInterval(_pollInterval);
+  _pollInterval=setInterval(async()=>{
+    if(document.visibilityState==='hidden')return;
+    await cloudSync();
+  },30000);
+}
+
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&!ciSession){
     syncSessionsNow().then(()=>checkSessionTrigger());
+    cloudSync(); // full sync when returning to tab
   }
 });
 </script>
