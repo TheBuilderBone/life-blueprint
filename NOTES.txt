@@ -1,5 +1,5 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 17 2026 (Session 3B complete)
+Last updated: March 17 2026 (Session 3C complete)
 
 ═══════════════════════════════════════
 LIVE URLS
@@ -169,6 +169,25 @@ Session 3B — Notifications — COMPLETE
 - Settings → Notifications: per-notification toggles, hour/min
   inputs, last-fired timestamps, individual Test buttons
 - Permission denied: instructions to fix in iPhone Settings shown
+
+Session 3C — Data Integrity and Error Handling — COMPLETE
+- MERGE CONFLICT (Fix 1): cloudSync() uses smartMerge() for all
+  non-session keys. Arrays deduplicate by ts. Objects: local wins
+  for existing keys, remote fills gaps. All decisions logged to
+  console. Toast shows "X items merged" after any merge.
+- SYNC BANNER (Fix 2): Dashboard shows yellow banner if Supabase
+  keys missing (bp_sync_status=no_keys) or auth failed
+  (bp_sync_status=auth_error). Dismissable for 24h. [Settings]
+  button links directly to setup. Silence = sync working.
+- AUTO BACKUP (Fix 3): writeAutoBackup() runs after every save()
+  call (max once per minute). Writes bp_auto_backup_YYYY-MM-DD.
+  Keeps today/yesterday/2-days-ago, removes older ones.
+  Reflect → Backup shows last backup time + Restore buttons.
+  restoreAutoBackup(dk) restores from selected date snapshot.
+- CREDIT ALERT (Fix 4): getRecommendation() checks 400 errors
+  for "credit"/"billing" in message. Sets bp_ai_credits_low=1
+  and shows persistent red banner on dashboard + specific message
+  in rec cards. Clears automatically when any AI call succeeds.
 
 ═══════════════════════════════════════
 NEXT SESSION — Session 4

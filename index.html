@@ -632,6 +632,55 @@ const CFG = {
 // ============================================================
 function ld(k,d){try{const v=localStorage.getItem('bp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
 function sv(k,v){try{localStorage.setItem('bp_'+k,JSON.stringify(v));}catch{}}
+
+// Auto local backup — max once per minute, keeps today / yesterday / 2-days-ago
+let _lastAutoBackupTs=0;
+function writeAutoBackup(){
+  const now=Date.now();
+  if(now-_lastAutoBackupTs<60000)return;
+  _lastAutoBackupTs=now;
+  try{
+    const dk=getDK(0);
+    const snapshot={_ts:now,_date:dk};
+    const keys=[];for(let i=0;i<localStorage.length;i++)keys.push(localStorage.key(i));
+    keys.filter(k=>k&&k.startsWith('bp_')&&!k.startsWith('bp_auto_backup')).forEach(k=>snapshot[k]=localStorage.getItem(k));
+    localStorage.setItem('bp_auto_backup_'+dk,JSON.stringify(snapshot));
+    const keep=new Set([dk,getDK(-1),getDK(-2)].map(d=>'bp_auto_backup_'+d));
+    keys.filter(k=>k&&k.startsWith('bp_auto_backup_')&&!keep.has(k)).forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function restoreAutoBackup(dk){
+  const raw=localStorage.getItem('bp_auto_backup_'+(dk||getDK(0)));
+  if(!raw){showToast('No auto backup found','var(--red)');return;}
+  if(!confirm('Restore from auto backup? Current data will be overwritten.'))return;
+  const snap=JSON.parse(raw);
+  Object.entries(snap).forEach(([k,v])=>{if(k!=='_ts'&&k!=='_date')localStorage.setItem(k,v);});
+  showToast('✓ Restored from auto backup','var(--green)');
+  setTimeout(()=>location.reload(),1000);
+}
+
+// Merge conflict: first (local) entry always wins; remote fills gaps only
+function smartMerge(key,localVal,remoteVal){
+  if(Array.isArray(localVal)&&Array.isArray(remoteVal)){
+    const seen=new Set(localVal.map(e=>e.ts?String(e.ts):JSON.stringify(e)));
+    const adds=remoteVal.filter(e=>!seen.has(e.ts?String(e.ts):JSON.stringify(e)));
+    if(adds.length)console.log(`[Sync] ${key}: +${adds.length} new items from remote`);
+    return{merged:[...localVal,...adds],count:adds.length};
+  }
+  if(localVal&&remoteVal&&typeof localVal==='object'&&typeof remoteVal==='object'){
+    const merged={...remoteVal};let count=0;
+    Object.keys(localVal).forEach(k=>{
+      if(merged[k]!==undefined&&JSON.stringify(merged[k])!==JSON.stringify(localVal[k])){
+        console.log(`[Sync] ${key}[${k}]: local wins (first entry)`);count++;
+      }
+      merged[k]=localVal[k];// local always overwrites remote for existing keys
+    });
+    Object.keys(remoteVal).forEach(k=>{if(localVal[k]===undefined){console.log(`[Sync] ${key}[${k}]: added from remote`);count++;}});
+    return{merged,count};
+  }
+  return{merged:localVal,count:0};
+}
+
 function showToast(msg='✓ SAVED',color='var(--green)'){
   const t=document.getElementById('toast');
   t.textContent=msg;t.style.background=color;
@@ -640,6 +689,7 @@ function showToast(msg='✓ SAVED',color='var(--green)'){
 const saveTimers={};
 async function save(key){
   sv(key,S[key]);showToast();
+  writeAutoBackup();
   clearTimeout(saveTimers[key]);
   saveTimers[key]=setTimeout(async()=>{
     if(CFG.SUPABASE_URL.includes('PASTE'))return;
@@ -653,35 +703,53 @@ async function save(key){
   },2000);
 }
 async function cloudSync(){
-  if(CFG.SUPABASE_URL.includes('PASTE'))return;
+  if(CFG.SUPABASE_URL.includes('PASTE')||!CFG.SUPABASE_URL||!CFG.SUPABASE_KEY){
+    localStorage.setItem('bp_sync_status','no_keys');return;
+  }
   try{
     const res=await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&select=data_key,data_value,updated_at`,
       {headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`}});
-    if(!res.ok)return;
-    const rows=await res.json();let updated=false;
+    if(!res.ok){
+      const status=res.status===401||res.status===403?'auth_error':'error';
+      localStorage.setItem('bp_sync_status',status);
+      console.warn('[Sync] cloudSync HTTP',res.status,'→',status);
+      return;
+    }
+    localStorage.setItem('bp_sync_status','ok');
+    const rows=await res.json();let updated=false;let totalMerged=0;
     rows.forEach(row=>{
       const lt=localStorage.getItem('bp_sync_'+row.data_key);
       if(!lt||new Date(row.updated_at)>new Date(lt)){
         if(row.data_key==='sessions'){
-          // Merge sessions — completed sessions can never be overwritten by missed/absent
           const remote=JSON.parse(row.data_value||'{}');
           Object.keys(remote).forEach(dk=>{
             if(!S.sessions[dk])S.sessions[dk]={};
             ['morning','midday','evening'].forEach(t=>{
               const r=remote[dk][t];const l=S.sessions[dk][t];
-              if(r&&r.ts&&(!l||l.missed||(l.ts&&r.ts>l.ts)))S.sessions[dk][t]=r;
+              if(r&&r.ts&&(!l||l.missed||(l.ts&&r.ts>l.ts))){S.sessions[dk][t]=r;totalMerged++;}
             });
           });
           sv('sessions',S.sessions);
         } else {
-          localStorage.setItem('bp_'+row.data_key,row.data_value);
+          const remoteVal=JSON.parse(row.data_value||'null');
+          const localVal=ld(row.data_key,null);
+          if(localVal!==null&&remoteVal!==null){
+            const {merged,count}=smartMerge(row.data_key,localVal,remoteVal);
+            sv(row.data_key,merged);totalMerged+=count;
+          } else {
+            localStorage.setItem('bp_'+row.data_key,row.data_value);
+          }
         }
         localStorage.setItem('bp_sync_'+row.data_key,row.updated_at);
         updated=true;
       }
     });
+    if(totalMerged>0)showToast(`Synced — ${totalMerged} item${totalMerged!==1?'s':''} merged`,'var(--blue)');
     if(updated){Object.keys(S).forEach(k=>{if(k!=='sessions')S[k]=ld(k,S[k]);});renderCurrent();updateTopbar();}
-  }catch{}
+  }catch(e){
+    console.error('[Sync] cloudSync error:',e);
+    localStorage.setItem('bp_sync_status','error');
+  }
 }
 
 // Fetch sessions from Supabase before deciding whether to prompt a session.
@@ -1126,9 +1194,18 @@ Respond in EXACT JSON:
     });
     if(!res.ok){
       const errData=await res.json().catch(()=>({}));
+      const errMsg=((errData?.error||errData?.message||errData?.error?.message)||'').toLowerCase();
+      const isCredits=res.status===400&&(errMsg.includes('credit')||errMsg.includes('billing')||errMsg.includes('insufficient'));
+      if(isCredits){
+        localStorage.setItem('bp_ai_credits_low','1');
+        const cb=document.getElementById('ai-credit-banner');if(cb)cb.style.display='flex';
+      }
       console.error('AI function error:',res.status,errData);
-      return {_error:true,_status:res.status,_message:errData?.error||'Unknown error'};
+      return{_error:true,_status:res.status,_message:errData?.error||'Unknown error',_credits:isCredits};
     }
+    // Successful AI call — clear any credit warning
+    localStorage.removeItem('bp_ai_credits_low');
+    const cb=document.getElementById('ai-credit-banner');if(cb)cb.style.display='none';
     const data=await res.json();
     const text=data.content?.[0]?.text||'';
     const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
@@ -1167,7 +1244,8 @@ async function loadRec(type,icon,title,tag,contextData){
   }
   if(data._error){
     bodyEl.className='rec-body';
-    const msg=data._status===401?'Invalid Anthropic key — check Cloudflare Worker secret':
+    const msg=data._credits?'AI credits are empty — add credits at console.anthropic.com → Billing':
+              data._status===401?'Invalid Anthropic key — check Cloudflare Worker secret':
               data._status===429?'Rate limit hit — wait a minute and tap Refresh':
               data._status===500?'Worker error — check that ANTHROPIC_API_KEY is set in Cloudflare':
               `Error ${data._status}: ${data._message}`;
@@ -1300,6 +1378,30 @@ function renderDashboard(){
       </div>
     </div>
   </div>
+
+  <!-- SYSTEM BANNERS: SYNC + CREDITS -->
+  ${(()=>{
+    const syncStatus=localStorage.getItem('bp_sync_status')||'';
+    const dismissed=parseInt(localStorage.getItem('bp_sync_banner_dismissed')||'0');
+    const showSyncBanner=(syncStatus==='no_keys'||syncStatus==='auth_error')&&(Date.now()-dismissed>86400000);
+    const creditsLow=localStorage.getItem('bp_ai_credits_low')==='1';
+    if(!showSyncBanner&&!creditsLow)return'';
+    return`<div style="padding:12px 0 0">`
+      +(showSyncBanner?`<div id="sync-banner" style="background:rgba(240,160,0,.09);border:1px solid rgba(240,160,0,.3);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="font-size:16px;flex-shrink:0">⚠</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--gold)">${syncStatus==='auth_error'?'Sync connection failed — check your keys in Settings':'Cloud sync is off — data saved locally only'}</div>
+          <div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--muted);margin-top:2px">${syncStatus==='auth_error'?'Keys may be incorrect or expired':'Go to Settings → Setup to connect'}</div>
+        </div>
+        <button onclick="navGroup(\'settings\');show(\'settings\')" style="padding:7px 10px;background:var(--gold);border:none;border-radius:7px;color:#000;font-family:\'DM Mono\',monospace;font-size:9px;font-weight:600;cursor:pointer;flex-shrink:0">Settings</button>
+        <button onclick="localStorage.setItem(\'bp_sync_banner_dismissed\',Date.now());document.getElementById(\'sync-banner\').style.display=\'none\'" style="padding:7px 8px;background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-family:\'DM Mono\',monospace;font-size:9px;cursor:pointer;flex-shrink:0">×</button>
+      </div>`:'')
+      +(creditsLow?`<div id="ai-credit-banner" style="background:rgba(240,48,80,.07);border:1px solid rgba(240,48,80,.25);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:3px">⚠ AI credits are low or empty</div>
+        <div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--muted);line-height:1.6">Add credits at <b style="color:var(--text)">console.anthropic.com → Billing</b>. AI features paused until credits are restored.</div>
+      </div>`:`<div id="ai-credit-banner" style="display:none"></div>`)
+      +`</div>`;
+  })()}
 
   <!-- MISSED SESSION BANNERS -->
   ${(()=>{
@@ -3335,8 +3437,32 @@ function renderDataInfo(){
   `;
 }
 function renderBackup(){
+  const dk=getDK(0);
+  const autoSnap=localStorage.getItem('bp_auto_backup_'+dk);
+  const autoTs=autoSnap?JSON.parse(autoSnap)._ts:null;
+  const autoAge=autoTs?Math.round((Date.now()-autoTs)/60000):null;
+  const autoLabel=autoAge===null?'No backup yet today':autoAge<1?'Just now':autoAge<60?`${autoAge} minute${autoAge!==1?'s':''} ago`:`${Math.round(autoAge/60)}h ago`;
+  const prevDays=[getDK(-1),getDK(-2)].filter(d=>localStorage.getItem('bp_auto_backup_'+d));
   document.getElementById('content').innerHTML=`
   <div class="alert ag" style="padding-top:4px"><b>Export monthly.</b> Data lives in this browser. Clear browser data without a backup = data lost.</div>
+
+  <!-- AUTO BACKUP STATUS -->
+  <div class="sec-lbl">Auto Backup</div>
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${autoTs?'var(--green)':'var(--muted)'};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600">Last auto backup</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px">${autoLabel} — runs automatically every save</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${autoTs?`<button onclick="restoreAutoBackup('${dk}')" style="padding:9px 14px;background:rgba(0,204,122,.1);border:1px solid rgba(0,204,122,.25);border-radius:8px;color:var(--green);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Restore Today</button>`:''}
+      ${prevDays.map(d=>`<button onclick="restoreAutoBackup('${d}')" style="padding:9px 14px;background:var(--dim);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">Restore ${d}</button>`).join('')}
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:10px;line-height:1.6">Keeps today, yesterday, and 2 days ago. Independent of Supabase — always local.</div>
+  </div>
+
   <div class="g2" style="margin-bottom:12px">
     <div class="card cp">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;text-transform:uppercase;color:var(--green);margin-bottom:8px">⬇ Export</div>
