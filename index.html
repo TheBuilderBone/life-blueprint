@@ -1523,9 +1523,11 @@ function ciNext(){
 }
 
 async function finishSession(){
-  const dk=getDK(0);
+  const dk=ciSession.isEdit?ciSession.editDk:getDK(0);
   if(!S.sessions[dk])S.sessions[dk]={};
-  S.sessions[dk][ciSession.type]={...ciSession.answers,ts:Date.now()};
+  const prevTs=S.sessions[dk][ciSession.type]?.ts||Date.now();
+  const extra=ciSession.isEdit?{ts:prevTs,edited_at:Date.now()}:{ts:Date.now()};
+  S.sessions[dk][ciSession.type]={...ciSession.answers,...extra};
   sv('sessions',S.sessions);
   // Bridge to legacy checkins so rest of app still gets energy/priority
   if(ciSession.type==='morning'){
@@ -1554,16 +1556,16 @@ async function finishSession(){
       <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">Generating your summary...</div>
     </div>`;
   const summary=await generateSessionSummary(ciSession.type,ciSession.answers);
-  const ratingObj=RATINGS.find(r=>r.val===ciSession.answers.rating)||{};
+  // Save summary so it can be viewed later
+  S.sessions[dk][ciSession.type].summary=summary;
+  sv('sessions',S.sessions);
+  const isEdit=ciSession.isEdit;
+  const sessionType=ciSession.type;
   document.getElementById('ci-body').innerHTML=`
     <div style="padding:8px 0">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px">${SESSION_EMOJIS[ciSession.type]} ${SESSION_LABELS[ciSession.type]} Summary</div>
-      <div style="font-family:'Barlow',sans-serif;font-size:16px;color:var(--text);line-height:1.7;margin-bottom:20px">${summary}</div>
-      ${ratingObj.val?`<div style="padding:12px 14px;background:rgba(255,85,0,.08);border:1px solid rgba(255,85,0,.2);border-radius:10px;margin-bottom:28px">
-        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Your rating</div>
-        <div style="font-size:22px;font-family:'Barlow Condensed',sans-serif;font-weight:700">${ratingObj.icon} ${ratingObj.label} <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);font-weight:400">${ratingObj.sub}</span></div>
-      </div>`:''}
-      <button onclick="closeSession('${ciSession.type}')" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Enter Blueprint →</button>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px">${SESSION_EMOJIS[sessionType]} ${SESSION_LABELS[sessionType]} ${isEdit?'Updated':'Summary'}</div>
+      <div style="font-family:'Barlow',sans-serif;font-size:16px;color:var(--text);line-height:1.7;margin-bottom:28px">${summary}</div>
+      <button onclick="${isEdit?'document.getElementById(\'ci-gate\').style.display=\'none\';renderCheckin()':'closeSession(\''+sessionType+'\')'}" style="display:block;width:100%;padding:16px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">${isEdit?'Done ✓':'Enter Blueprint →'}</button>
     </div>`;
 }
 
@@ -1607,6 +1609,41 @@ function dismissTransition(type){
   document.getElementById('ci-gate').style.display='none';
 }
 
+function editSession(dk,type){
+  const existing=S.sessions[dk]?.[type];
+  if(!existing||existing.missed)return;
+  ciSession={type,step:0,answers:{...existing},selectedRating:null,isEdit:true,editDk:dk};
+  document.getElementById('ci-gate').style.display='block';
+  renderStep();
+}
+
+function viewSummary(dk,type){
+  const s=S.sessions[dk]?.[type];
+  if(!s)return;
+  const summary=s.summary||null;
+  const firstKey=SESSION_QUESTIONS[type]?.[0]?.key;
+  const firstAnswer=firstKey?s[firstKey]:'';
+  ciSession=null;
+  document.getElementById('ci-gate').style.display='block';
+  document.getElementById('ci-header').innerHTML='';
+  document.getElementById('ci-footer').innerHTML='';
+  document.getElementById('ci-body').innerHTML=`
+    <div style="padding:8px 0">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px">${SESSION_EMOJIS[type]} ${SESSION_LABELS[type]} Summary</div>
+      ${summary
+        ?`<div style="font-family:'Barlow',sans-serif;font-size:16px;color:var(--text);line-height:1.7;margin-bottom:24px">${summary}</div>`
+        :`<div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:24px;line-height:1.7">No summary saved — this session was completed before summaries were stored.</div>`}
+      ${firstAnswer?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:24px">
+        <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${SESSION_QUESTIONS[type][0]?.q||'First answer'}</div>
+        <div style="font-size:14px;color:var(--soft);line-height:1.6">${firstAnswer}</div>
+      </div>`:''}
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('ci-gate').style.display='none'" style="flex:1;padding:14px;background:var(--dim);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer">Close</button>
+        <button onclick="editSession('${dk}','${type}')" style="flex:1;padding:14px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">Edit →</button>
+      </div>
+    </div>`;
+}
+
 async function generateSessionSummary(type,answers){
   const qs=SESSION_QUESTIONS[type].filter(q=>q.type!=='rating');
   const lines=qs.map(q=>`Q: ${q.q}\nA: ${answers[q.key]||'(no answer)'}`).join('\n\n');
@@ -1642,27 +1679,36 @@ function renderCheckin(){
     <button class="btn btn-full" style="margin-bottom:8px;background:var(--accent)" onclick="startSession('${t}')">
       ${SESSION_EMOJIS[t]} Start ${SESSION_LABELS[t]}
     </button>`).join('')}</div>`:''}
-  ${done.length?`<div class="section"><div class="sec-lbl">Today — Completed</div>${done.map(t=>{
+  ${done.filter(t=>!todaySessions[t]?.missed).length?`<div class="section"><div class="sec-lbl">Today — Completed</div>${done.filter(t=>!todaySessions[t]?.missed).map(t=>{
     const s=todaySessions[t];
-    const ratingObj=RATINGS.find(r=>r.val===s.rating)||{};
-    return`<div class="card cp" style="margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent)">${SESSION_EMOJIS[t]} ${SESSION_LABELS[t]}</div>
-        ${ratingObj.val?`<div style="font-family:'DM Mono',monospace;font-size:11px">${ratingObj.icon} ${ratingObj.label}</div>`:''}
+    const timeStr=s.ts?new Date(s.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+    const firstQ=SESSION_QUESTIONS[t]?.[0];
+    const preview=firstQ&&s[firstQ.key]?(s[firstQ.key].length>80?s[firstQ.key].slice(0,80)+'…':s[firstQ.key]):'';
+    return`<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${preview?'8':'12'}px">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent)">${SESSION_EMOJIS[t]} ${SESSION_LABELS[t]}</div>
+          ${timeStr?`<div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px">${timeStr}${s.edited_at?' · edited':''}</div>`:''}
+        </div>
+        <div style="font-size:20px;color:var(--green)">✓</div>
       </div>
-      ${Object.entries(s).filter(([k])=>k!=='rating'&&k!=='ts').slice(0,2).map(([k,v])=>`
-        <div style="margin-bottom:6px"><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${k.replace(/_/g,' ')}</div>
-        <div style="font-size:12px;color:var(--soft)">${v}</div></div>`).join('')}
+      ${preview?`<div style="font-size:13px;color:var(--soft);line-height:1.5;margin-bottom:12px;padding:10px 12px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent)">${preview}</div>`:''}
+      <div style="display:flex;gap:8px">
+        <button onclick="viewSummary('${dk}','${t}')" style="flex:1;padding:10px 8px;background:var(--dim);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:.5px">View Summary</button>
+        <button onclick="editSession('${dk}','${t}')" style="flex:1;padding:10px 8px;background:rgba(255,85,0,.12);border:1px solid rgba(255,85,0,.3);border-radius:8px;color:var(--accent);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;letter-spacing:.5px">Edit →</button>
+      </div>
     </div>`;}).join('')}</div>`:''}
   <div class="section"><div class="sec-lbl">Recent History</div>
   ${Object.entries(S.sessions).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).map(([date,day])=>`
     <div class="card cp" style="margin-bottom:8px">
       <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px">${date}</div>
       <div style="display:flex;gap:10px">
-        ${['morning','midday','evening'].map(t=>day[t]?`<div style="flex:1;text-align:center">
-          <div style="font-size:14px">${SESSION_EMOJIS[t]}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${day[t].rating?RATINGS.find(r=>r.val===day[t].rating)?.icon||'':'–'}</div>
-        </div>`:`<div style="flex:1;text-align:center;opacity:.25"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div></div>`).join('')}
+        ${['morning','midday','evening'].map(t=>{
+          const sess=day[t];
+          if(!sess)return`<div style="flex:1;text-align:center;opacity:.2"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">—</div></div>`;
+          if(sess.missed)return`<div style="flex:1;text-align:center"><div style="font-size:14px;opacity:.4">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--red);margin-top:2px">missed</div></div>`;
+          return`<div style="flex:1;text-align:center;cursor:pointer" onclick="viewSummary('${date}','${t}')"><div style="font-size:14px">${SESSION_EMOJIS[t]}</div><div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--green);margin-top:2px">✓</div></div>`;
+        }).join('')}
       </div>
     </div>`).join('')}
   </div>
