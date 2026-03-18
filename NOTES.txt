@@ -1,5 +1,5 @@
 LIFE BLUEPRINT — PROJECT STATE
-Last updated: March 17 2026 (Session 3C complete)
+Last updated: March 17 2026 (Session 3C+ sync fixes complete)
 
 ═══════════════════════════════════════
 LIVE URLS
@@ -184,6 +184,17 @@ Session 3B/3C combined fixes — COMPLETE
 - startBackgroundPoll() runs every 30s, skips when hidden
 - Full cloudSync() triggered on visibility restore
 - Debug tools section in Settings → Setup for testing banners
+
+Session 3C+ Sync Bug Fixes — COMPLETE
+- Trailing slash URL bug: saveSupabaseKeys() strips trailing slash before
+  storing; loadSavedKeys() strips on read; getSupabaseUrl() helper used
+  everywhere instead of raw CFG.SUPABASE_URL
+- Auto-sync ALL bp_* keys: sv() now calls _schedulePush() on every write;
+  _pushKey() pushes to Supabase after 3s debounce; all 8 habit keys and
+  any future keys sync automatically without code changes
+- SYNC_EXCLUDE_RE skips: auto_backup_*, sync_*, device_id, notif_*, morning_rec_*
+- save() simplified to sv()+toast+writeAutoBackup() — push now in sv()
+- finishSession() direct Supabase push removed — sv('sessions') handles it
 
 ═══════════════════════════════════════
 NEXT SESSION — Session 3D: AI End of Day Report

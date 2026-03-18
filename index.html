@@ -622,7 +622,7 @@ const CFG = {
     const su=localStorage.getItem('bp_user_supabase_url')||sessionStorage.getItem('bp_key_su');
     const sk=localStorage.getItem('bp_user_supabase_key')||sessionStorage.getItem('bp_key_sk');
     if(ak&&ak.startsWith('sk-ant')){CFG.ANTHROPIC_KEY=ak;}
-    if(su&&su.includes('supabase.co')){CFG.SUPABASE_URL=su;}
+    if(su&&su.includes('supabase.co')){CFG.SUPABASE_URL=su.replace(/\/+$/,'');}
     if(sk&&sk.startsWith('eyJ')){CFG.SUPABASE_KEY=sk;}
   }catch(e){console.log('Key load error:',e);}
 })();
@@ -631,7 +631,29 @@ const CFG = {
 // STORAGE + CLOUD SYNC
 // ============================================================
 function ld(k,d){try{const v=localStorage.getItem('bp_'+k);return v?JSON.parse(v):d;}catch{return d;}}
-function sv(k,v){try{localStorage.setItem('bp_'+k,JSON.stringify(v));}catch{}}
+function sv(k,v){try{localStorage.setItem('bp_'+k,JSON.stringify(v));_schedulePush(k);}catch{}}
+function getSupabaseUrl(){return(CFG.SUPABASE_URL||'').replace(/\/+$/,'');}
+const SYNC_EXCLUDE_RE=/^(auto_backup_|sync_|device_id$|notif_|morning_rec_)/;
+const _pushTimers={};
+function _schedulePush(key){
+  if(SYNC_EXCLUDE_RE.test(key))return;
+  clearTimeout(_pushTimers[key]);
+  _pushTimers[key]=setTimeout(()=>_pushKey(key),3000);
+}
+async function _pushKey(key){
+  const url=getSupabaseUrl();
+  if(!url||url.includes('PASTE')||!CFG.SUPABASE_KEY)return;
+  const val=localStorage.getItem('bp_'+key);
+  if(val===null)return;
+  try{
+    await fetch(`${url}/rest/v1/blueprint_data`,{
+      method:'POST',
+      headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({user_id:CFG.USER_ID,data_key:key,data_value:val,updated_at:new Date().toISOString()}),
+    });
+    console.log(`[Sync] pushed ${key}`);
+  }catch(e){console.warn(`[Sync] push failed for ${key}:`,e);}
+}
 
 // Auto local backup — max once per minute, keeps today / yesterday / 2-days-ago
 let _lastAutoBackupTs=0;
@@ -686,28 +708,14 @@ function showToast(msg='✓ SAVED',color='var(--green)'){
   t.textContent=msg;t.style.background=color;
   t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);
 }
-const saveTimers={};
-async function save(key){
-  sv(key,S[key]);showToast();
-  writeAutoBackup();
-  clearTimeout(saveTimers[key]);
-  saveTimers[key]=setTimeout(async()=>{
-    if(CFG.SUPABASE_URL.includes('PASTE'))return;
-    try{
-      await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data`,{
-        method:'POST',
-        headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-        body:JSON.stringify({user_id:CFG.USER_ID,data_key:key,data_value:JSON.stringify(S[key]),updated_at:new Date().toISOString()}),
-      });
-    }catch{}
-  },2000);
-}
+function save(key){sv(key,S[key]);showToast();writeAutoBackup();}
 async function cloudSync(){
-  if(CFG.SUPABASE_URL.includes('PASTE')||!CFG.SUPABASE_URL||!CFG.SUPABASE_KEY){
+  const url=getSupabaseUrl();
+  if(!url||url.includes('PASTE')||!CFG.SUPABASE_KEY){
     localStorage.setItem('bp_sync_status','no_keys');return;
   }
   try{
-    const res=await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&select=data_key,data_value,updated_at`,
+    const res=await fetch(`${url}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&select=data_key,data_value,updated_at`,
       {headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`}});
     if(!res.ok){
       const status=res.status===401||res.status===403?'auth_error':'error';
@@ -769,7 +777,8 @@ async function cloudSync(){
 // Called on app open and on visibility change — must resolve before checkSessionTrigger().
 function isSessionComplete(s){return s&&!s.missed;}
 async function syncSessionsNow(){
-  if(CFG.SUPABASE_URL.includes('PASTE'))return;
+  const url=getSupabaseUrl();
+  if(!url||url.includes('PASTE')||!CFG.SUPABASE_KEY)return;
   const center=document.querySelector('.topbar-center');
   const origHTML=center?center.innerHTML:'';
   if(center)center.innerHTML='<span style="color:var(--muted);font-size:10px">syncing...</span>';
@@ -777,7 +786,7 @@ async function syncSessionsNow(){
     const ctrl=new AbortController();
     const tid=setTimeout(()=>ctrl.abort(),2000);
     const res=await fetch(
-      `${CFG.SUPABASE_URL}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&data_key=eq.sessions&select=data_value,updated_at`,
+      `${url}/rest/v1/blueprint_data?user_id=eq.${CFG.USER_ID}&data_key=eq.sessions&select=data_value,updated_at`,
       {headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`},signal:ctrl.signal}
     );
     clearTimeout(tid);
@@ -1661,23 +1670,13 @@ async function finishSession(){
   const prevTs=S.sessions[dk][ciSession.type]?.ts||Date.now();
   const extra=ciSession.isEdit?{ts:prevTs,edited_at:Date.now()}:{ts:Date.now()};
   S.sessions[dk][ciSession.type]={...ciSession.answers,...extra};
-  sv('sessions',S.sessions);
+  sv('sessions',S.sessions);// auto-pushed to Supabase by sv()
   // Bridge to legacy checkins so rest of app still gets energy/priority
   if(ciSession.type==='morning'){
     if(!S.checkins[dk])S.checkins[dk]={};
     if(ciSession.answers.intention)S.checkins[dk].priority=ciSession.answers.intention;
     if(ciSession.answers.friction)S.checkins[dk].obstacle=ciSession.answers.friction;
     save('checkins');
-  }
-  // Supabase sync
-  if(!CFG.SUPABASE_URL.includes('PASTE')){
-    try{
-      await fetch(`${CFG.SUPABASE_URL}/rest/v1/blueprint_data`,{
-        method:'POST',
-        headers:{'apikey':CFG.SUPABASE_KEY,'Authorization':`Bearer ${CFG.SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-        body:JSON.stringify({user_id:CFG.USER_ID,data_key:'sessions',data_value:JSON.stringify(S.sessions),updated_at:new Date().toISOString()}),
-      });
-    }catch{}
   }
   // Show loading
   document.getElementById('ci-header').innerHTML='';
@@ -3600,7 +3599,7 @@ function renderSettings(){
 }
 
 function saveSupabaseKeys(){
-  const url=document.getElementById('set-supabase-url').value.trim();
+  const url=document.getElementById('set-supabase-url').value.trim().replace(/\/+$/,'');
   const key=document.getElementById('set-supabase-key').value.trim();
   if(!url||!key){showToast('Enter both fields','var(--red)');return;}
   if(!url.includes('supabase.co')){showToast('URL should end in supabase.co','var(--red)');return;}
