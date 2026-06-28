@@ -397,6 +397,95 @@ def generate_overview_chart(all_results):
     print(f"  Chart saved: charts/overview.png")
 
 
+def generate_total_chart(rows, total_funding):
+    """Save a chart of total utility spend per month vs. the flat funded amount."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        import matplotlib.ticker as mticker
+        import datetime
+    except ImportError:
+        return
+
+    os.makedirs(CHARTS_DIR, exist_ok=True)
+
+    monthly = {}
+    for r in rows:
+        if not r["exclude"]:
+            monthly.setdefault(r["date"], 0.0)
+            monthly[r["date"]] += r["amount"]
+
+    sorted_months = sorted(monthly.items())
+    dates   = [datetime.datetime.strptime(d, "%Y-%m") for d, _ in sorted_months]
+    totals  = [v for _, v in sorted_months]
+
+    fig, ax = plt.subplots(figsize=(14, 6))
+    fig.patch.set_facecolor("white")
+    _setup_ax(ax)
+
+    # Gradient fill layers for depth
+    ax.fill_between(dates, totals, alpha=0.08, color=PALETTE["blue"])
+    ax.fill_between(dates, totals, alpha=0.06, color=PALETTE["blue"], interpolate=True)
+
+    # Funded flat line band
+    ax.axhspan(0, total_funding, alpha=0.04, color=PALETTE["green"])
+    ax.axhline(total_funding, color=PALETTE["red"], linestyle="--",
+               linewidth=2.2, alpha=0.9, zorder=2)
+
+    # Main line
+    ax.plot(dates, totals, "-", linewidth=3, color=PALETTE["blue"], zorder=3)
+
+    # Color coded points
+    for d, t in zip(dates, totals):
+        c = PALETTE["red"] if t > total_funding else PALETTE["green"]
+        ax.scatter([d], [t], s=90, color=c, zorder=5, edgecolors="white", linewidths=2)
+
+    # Annotations
+    if totals:
+        hi_i = totals.index(max(totals))
+        lo_i = totals.index(min(totals))
+        ax.annotate(f"${totals[hi_i]:.0f}", (dates[hi_i], totals[hi_i]),
+                    xytext=(0, 13), textcoords="offset points",
+                    ha="center", fontsize=10, fontweight="bold", color=PALETTE["red"])
+        ax.annotate(f"${totals[lo_i]:.0f}", (dates[lo_i], totals[lo_i]),
+                    xytext=(0, -18), textcoords="offset points",
+                    ha="center", fontsize=10, fontweight="bold", color=PALETTE["green"])
+
+    # Right-edge label for funded line
+    if dates:
+        span = (max(dates) - min(dates)).days
+        ax.set_xlim(right=max(dates) + datetime.timedelta(days=span * 0.07))
+        ax.text(max(dates), total_funding, f"  funded ${total_funding}",
+                va="center", ha="left", fontsize=10,
+                color=PALETTE["red"], fontweight="bold")
+
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    plt.xticks(rotation=45, ha="right", fontsize=9, color=PALETTE["subtext"])
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:.0f}"))
+    ax.tick_params(axis="y", labelsize=9, labelcolor=PALETTE["subtext"])
+
+    if totals:
+        y_pad = (max(totals) - min(totals)) * 0.2
+        ax.set_ylim(max(0, min(totals) - y_pad), max(totals) + y_pad * 2.5)
+
+    ax.grid(axis="y", color=PALETTE["grid"], linewidth=0.8)
+    ax.set_title("All Utilities — Total Monthly Cost", fontsize=19,
+                 fontweight="bold", color=PALETTE["text"], pad=14, loc="left")
+    fig.text(0.07, 0.91,
+             f"{len(totals)} months · avg ${sum(totals)/len(totals):.0f} · "
+             f"peak ${max(totals):.0f} · flat funding ${total_funding}",
+             fontsize=9.5, color=PALETTE["subtext"])
+
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    out = os.path.join(CHARTS_DIR, "total.png")
+    plt.savefig(out, dpi=160, bbox_inches="tight")
+    plt.close()
+    print(f"  Chart saved: charts/total.png")
+
+
 # ─── Main analysis ────────────────────────────────────────────────────────────
 
 def analyze():
@@ -500,6 +589,8 @@ def analyze():
         generate_chart(utility, active, excluded, recommended, s["avg"], s)
 
     generate_overview_chart(results)
+    generate_total_chart(rows, total_funding=sum(
+        results[u]["recommended"] for u in UTILITIES if u in results))
 
     # ── Summary ────────────────────────────────────────────────────
     print("\n" + "=" * 62)
