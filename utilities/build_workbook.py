@@ -233,6 +233,117 @@ def build_system(wb):
         note="Sweeps automatically until rate changes"); r+=1
     row(r, "Hidden savings in flex (approx.)", fx=f"=C{r-2}+C{r-1}",
         bold=True, bg=LGREEN); r+=1
+    ws.row_dimensions[r].height = 8; r+=1
+
+    # ── Self-employment tax reserve ────────────────────────────────
+    sec(r, "SELF-EMPLOYMENT TAX RESERVE  (1099 side work)", "7C3AED"); r+=1
+    # Row 6 = side work ($480) — known from build order above
+    row(r, "Side work gross  (from income above)", fx="=C6", bg=LGRAY,
+        note="1099 — no taxes withheld; this must come out before you touch the money"); r+=1
+    se_show_r = r - 1
+    se_reserve_r = r
+    row(r, "Monthly reserve  (28% — SE tax 15.3% + income tax est.)",
+        fx=f"=C{se_show_r}*0.28", bold=True, bg="EDE9FE",
+        note="Transfer on every payday before spending any side income"); r+=1
+    row(r, "True spendable from side work",
+        fx=f"=C{se_show_r}-C{se_reserve_r}", bg=LGRAY,
+        note="What's actually yours after the tax reserve is parked"); r+=1
+    ws.row_dimensions[r].height = 8; r+=1
+
+    # ── Sinking funds ─────────────────────────────────────────────
+    sec(r, "SINKING FUNDS  — annual / irregular costs ÷ 12", AMBER); r+=1
+    row(r, "Truck maintenance  (1999 Silverado, self-maintained)", 75, bg=LGRAY,
+        note="~$900/yr est. · adjust to your history"); r+=1
+    row(r, "Vehicle registration  (AL, annual)", 17,
+        note="~$200/yr ÷ 12"); r+=1
+    row(r, "Annual insurance premiums  (if any lump-sum)", 0, bg=LGRAY,
+        note="$0 if already paying monthly — update if any biller charges annually"); r+=1
+    sink_r = r
+    row(r, "SINKING TOTAL  — set aside monthly",
+        fx=f"=SUM(C{r-3}:C{r-1})", bold=True, bg=ABLUE,
+        note="Park in a labeled savings vault; pull from it when the bill hits"); r+=1
+    ws.row_dimensions[r].height = 8; r+=1
+
+    # ── Income trajectory ──────────────────────────────────────────
+    sec(r, "INCOME TRAJECTORY  — current effective wage → target", BLUE); r+=1
+    row(r, "Current effective wage  (50hr wk + 7hr commute)", bg=LGRAY,
+        note="$2,560 take-home ÷ ~217 hrs/mo (50hr work + 7hr commute = ~7hr/day)"); r+=1
+    ws[f"C{r-1}"] = 11.81
+    ws[f"C{r-1}"].number_format = '"$"#,##0.00'
+    ws[f"C{r-1}"].fill          = fill(LGRAY)
+    ws[f"C{r-1}"].alignment     = align("right")
+    current_th_r = r
+    row(r, "Current monthly take-home  (Coke only)", 2560,
+        note="Baseline — side work net is on top of this"); r+=1
+    current_th_r = r - 1
+    row(r, "Target wage after retraining  ($20–25/hr, $22 midpoint)", bg=LGRAY,
+        note="Midpoint of stated $20–25/hr range"); r+=1
+    ws[f"C{r-1}"] = 22
+    ws[f"C{r-1}"].number_format = '"$"#,##0.00'
+    ws[f"C{r-1}"].fill          = fill(LGRAY)
+    ws[f"C{r-1}"].alignment     = align("right")
+    row(r, "Est. take-home at $22/hr  (40hr/wk, ~72% net)",
+        fx="=22*40*52/12*0.72",
+        note="Rough estimate — actual varies by deductions"); r+=1
+    est_r = r - 1
+    row(r, "Monthly income gain at target",
+        fx=f"=C{est_r}-C{current_th_r}", bold=True, bg=LGREEN,
+        note="Extra per month once you land the better role"); r+=1
+    ws.row_dimensions[r].height = 8; r+=1
+
+    # ── Savings goals ──────────────────────────────────────────────
+    sec(r, "SAVINGS GOALS  (sequential — ① Emergency Fund first)", GREEN); r+=1
+    ws.row_dimensions[r].height = 22
+    ws.merge_cells(f"A{r}:B{r}")
+    ws[f"A{r}"] = "Current savings balance  ← UPDATE THIS INPUT"
+    ws[f"A{r}"].fill      = fill(LBLUE)
+    ws[f"A{r}"].font      = Font(bold=True, color=BLUE, size=10, name="Calibri")
+    ws[f"A{r}"].alignment = align("left", "center")
+    ws[f"C{r}"] = 0
+    ws[f"C{r}"].number_format = '"$"#,##0.00'
+    ws[f"C{r}"].font          = Font(bold=True, color=BLUE, size=10, name="Calibri")
+    ws[f"C{r}"].fill          = fill(LBLUE)
+    ws[f"C{r}"].alignment     = align("right", "center")
+    ws[f"D{r}"] = "Blue = input cell  ·  enter your actual savings balance here"
+    ws[f"D{r}"].font      = Font(italic=True, size=9, color=BLUE, name="Calibri")
+    ws[f"D{r}"].fill      = fill(LBLUE)
+    ws[f"D{r}"].alignment = align(wrap=True)
+    savings_r = r; r+=1
+    ws.row_dimensions[r].height = 6; r+=1
+
+    row(r, "① EMERGENCY FUND — target", 7000, bold=True, bg=LGRAY); r+=1
+    ef_tgt_r = r - 1
+    row(r, "   Current  (from balance above)",
+        fx=f"=MIN(C{savings_r},7000)", bg=LGRAY); r+=1
+    ef_cur_r = r - 1
+    row(r, "   Remaining", fx=f"=MAX(0,C{ef_tgt_r}-C{ef_cur_r})", bg=LGRAY); r+=1
+    row(r, "   % Complete",
+        fx=f"=IFERROR(C{ef_cur_r}/C{ef_tgt_r},0)", bold=True, bg=LGREEN); r+=1
+    ws[f"C{r-1}"].number_format = "0.0%"
+    ws.row_dimensions[r].height = 6; r+=1
+
+    row(r, "② SEPTIC FUND — target  (starts after EF hits $7,000)", 7285, bold=True); r+=1
+    sep_tgt_r = r - 1
+    row(r, "   Current  (balance above − $7,000 EF)",
+        fx=f"=MAX(0,C{savings_r}-7000)"); r+=1
+    sep_cur_r = r - 1
+    row(r, "   Remaining", fx=f"=MAX(0,C{sep_tgt_r}-C{sep_cur_r})", bg=LGRAY); r+=1
+    row(r, "   % Complete",
+        fx=f"=IFERROR(C{sep_cur_r}/C{sep_tgt_r},0)", bold=True, bg=LGREEN); r+=1
+    ws[f"C{r-1}"].number_format = "0.0%"
+    ws.row_dimensions[r].height = 8; r+=1
+
+    # ── Revised bottom line (accounts for everything) ──────────────
+    sec(r, "REVISED MONTHLY PICTURE  (after tax reserve + sinking funds)", DARK); r+=1
+    row(r, "Gross leftover  (after fixed + flex)", fx=f"=C{left_r}", bg=LGRAY); r+=1
+    row(r, "  Less: SE tax reserve", fx=f"=-C{se_reserve_r}"); r+=1
+    row(r, "  Less: sinking funds", fx=f"=-C{sink_r}", bg=LGRAY); r+=1
+    true_left_r = r
+    row(r, "TRUE MONTHLY AVAILABLE",
+        fx=f"=C{left_r}-C{se_reserve_r}-C{sink_r}", bold=True, bg=ABLUE); r+=1
+    row(r, "  If Shane's $628 stops → true available",
+        fx=f"=C{true_left_r}-628", bold=True, bg="FEF9C3",
+        note="Hard number — build the system around this floor"); r+=1
 
     return ws
 
