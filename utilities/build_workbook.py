@@ -299,7 +299,7 @@ def build_system(wb):
     ws[f"A{r}"].fill      = fill(LBLUE)
     ws[f"A{r}"].font      = Font(bold=True, color=BLUE, size=10, name="Calibri")
     ws[f"A{r}"].alignment = align("left", "center")
-    ws[f"C{r}"] = 0
+    ws[f"C{r}"] = 502.15   # savings $250 + vault $252.15 (update when balance changes)
     ws[f"C{r}"].number_format = '"$"#,##0.00'
     ws[f"C{r}"].font          = Font(bold=True, color=BLUE, size=10, name="Calibri")
     ws[f"C{r}"].fill          = fill(LBLUE)
