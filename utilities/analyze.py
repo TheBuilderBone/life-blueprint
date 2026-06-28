@@ -161,13 +161,47 @@ def seasonal_pattern(values_by_date):
 
 # ─── Charts ───────────────────────────────────────────────────────────────────
 
-def generate_chart(utility, active_rows, excluded_rows, recommended, avg_val):
-    """Save a line chart PNG for this utility. Uses only stdlib + matplotlib."""
+PALETTE = {
+    "blue":    "#2563eb",
+    "amber":   "#d97706",
+    "red":     "#dc2626",
+    "green":   "#16a34a",
+    "gray":    "#94a3b8",
+    "bg":      "#f8fafc",
+    "grid":    "#e2e8f0",
+    "text":    "#0f172a",
+    "subtext": "#64748b",
+}
+
+UTILITY_COLOR = {
+    "Water":    "#0ea5e9",
+    "Power":    "#f59e0b",
+    "Internet": "#8b5cf6",
+    "Trash":    "#10b981",
+}
+
+
+def _setup_ax(ax):
+    ax.set_facecolor(PALETTE["bg"])
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color(PALETTE["grid"])
+    ax.spines["bottom"].set_color(PALETTE["grid"])
+    ax.grid(axis="y", color=PALETTE["grid"], linewidth=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="x", colors=PALETTE["subtext"], length=4)
+    ax.tick_params(axis="y", colors=PALETTE["subtext"], length=0)
+
+
+def generate_chart(utility, active_rows, excluded_rows, recommended, avg_val, s=None):
+    """Save a polished line chart PNG for this utility."""
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         import matplotlib.dates as mdates
+        import matplotlib.lines as mlines
+        import matplotlib.ticker as mticker
         import datetime
     except ImportError:
         print("  [charts skipped — install matplotlib: pip install matplotlib]")
@@ -175,37 +209,192 @@ def generate_chart(utility, active_rows, excluded_rows, recommended, avg_val):
 
     os.makedirs(CHARTS_DIR, exist_ok=True)
 
-    def to_date(s):
-        return datetime.datetime.strptime(s, "%Y-%m")
+    def to_date(d):
+        return datetime.datetime.strptime(d, "%Y-%m")
 
-    dates = [to_date(r["date"]) for r in active_rows]
+    dates   = [to_date(r["date"]) for r in active_rows]
     amounts = [r["amount"] for r in active_rows]
+    line_color = UTILITY_COLOR.get(utility, PALETTE["blue"])
 
-    excl_dates = [to_date(r["date"]) for r in excluded_rows]
-    excl_amounts = [r["amount"] for r in excluded_rows]
+    fig, ax = plt.subplots(figsize=(13, 5.5))
+    fig.patch.set_facecolor("white")
+    _setup_ax(ax)
 
-    fig, ax = plt.subplots(figsize=(11, 5))
-    ax.plot(dates, amounts, "o-", linewidth=2, color="#2a7ac7", label="Monthly bill", zorder=3)
-    if excl_dates:
-        ax.scatter(excl_dates, excl_amounts, color="gray", marker="x", s=80,
-                   linewidths=2, label="Excluded (outlier)", zorder=4)
-    ax.axhline(avg_val, color="#f5a623", linestyle="--", linewidth=1.4,
-               label=f"Avg: ${avg_val:.2f}")
-    ax.axhline(recommended, color="#d0021b", linestyle="--", linewidth=1.6,
-               label=f"Funding target: ${recommended:.0f}/mo")
-    ax.set_title(f"{utility} — Monthly Cost (your share)", fontsize=14, fontweight="bold")
-    ax.set_xlabel("Month")
-    ax.set_ylabel("Cost ($)")
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    # Soft fill under the line
+    ax.fill_between(dates, amounts, alpha=0.13, color=line_color, zorder=1)
+
+    # Avg–target shaded band
+    if recommended > avg_val:
+        ax.axhspan(avg_val, recommended, alpha=0.06, color=PALETTE["red"], zorder=1)
+
+    # Avg and target reference lines
+    ax.axhline(avg_val,     color=PALETTE["amber"], linestyle="--", linewidth=1.5,
+               alpha=0.85, zorder=2)
+    ax.axhline(recommended, color=PALETTE["red"],   linestyle="--", linewidth=2.0,
+               alpha=0.9,  zorder=2)
+
+    # Main line
+    ax.plot(dates, amounts, "-", linewidth=2.5, color=line_color, zorder=3)
+
+    # Color-coded points: green below avg, red above target, line_color otherwise
+    for d, a in zip(dates, amounts):
+        c = (PALETTE["red"]   if a > recommended else
+             PALETTE["green"] if a < avg_val     else line_color)
+        ax.scatter([d], [a], s=72, color=c, zorder=5,
+                   edgecolors="white", linewidths=1.8)
+
+    # Excluded points
+    if excluded_rows:
+        ex_d = [to_date(r["date"])  for r in excluded_rows]
+        ex_a = [r["amount"]          for r in excluded_rows]
+        ax.scatter(ex_d, ex_a, s=70, color=PALETTE["gray"], marker="x",
+                   linewidths=2.2, zorder=5)
+
+    # Annotate peak and low
+    if amounts:
+        hi_i = amounts.index(max(amounts))
+        lo_i = amounts.index(min(amounts))
+        spread = max(amounts) - min(amounts) if len(amounts) > 1 else 1
+        ax.annotate(f"${amounts[hi_i]:.0f}",
+                    (dates[hi_i], amounts[hi_i]),
+                    xytext=(0, 11), textcoords="offset points",
+                    ha="center", fontsize=9, fontweight="bold",
+                    color=PALETTE["red"])
+        ax.annotate(f"${amounts[lo_i]:.0f}",
+                    (dates[lo_i], amounts[lo_i]),
+                    xytext=(0, -17), textcoords="offset points",
+                    ha="center", fontsize=9, fontweight="bold",
+                    color=PALETTE["green"])
+
+    # Inline labels at the right edge of the reference lines
+    if dates:
+        xmax = max(dates)
+        ax.text(xmax, avg_val,     f"  avg ${avg_val:.0f}",
+                va="center", ha="left", fontsize=9,
+                color=PALETTE["amber"], fontweight="semibold")
+        ax.text(xmax, recommended, f"  fund ${recommended}",
+                va="center", ha="left", fontsize=9,
+                color=PALETTE["red"], fontweight="bold")
+
+    # Axes formatting
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
     ax.xaxis.set_major_locator(mdates.MonthLocator())
-    plt.xticks(rotation=45, ha="right")
-    ax.legend(loc="upper right")
-    ax.grid(axis="y", alpha=0.3)
-    plt.tight_layout()
+    plt.xticks(rotation=45, ha="right", fontsize=9, color=PALETTE["subtext"])
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:.0f}"))
+    ax.tick_params(axis="y", labelsize=9, labelcolor=PALETTE["subtext"])
+
+    # Y limits with breathing room
+    y_pad = (max(amounts) - min(amounts)) * 0.2 if len(amounts) > 1 else 10
+    ax.set_ylim(max(0, min(amounts) - y_pad), max(amounts) + y_pad * 2.5)
+
+    # Extend x-axis slightly right for inline labels
+    if len(dates) > 1:
+        span = (max(dates) - min(dates)).days
+        ax.set_xlim(right=max(dates) + datetime.timedelta(days=span * 0.07))
+
+    # Title block
+    ax.set_title(utility, fontsize=19, fontweight="bold",
+                 color=PALETTE["text"], pad=14, loc="left")
+    n_pts = len(amounts)
+    peak  = max(amounts) if amounts else 0
+    fig.text(0.115, 0.91,
+             f"{n_pts} months of data  •  avg ${avg_val:.0f}  •  "
+             f"peak ${peak:.0f}  •  fund ${recommended}/mo",
+             fontsize=9, color=PALETTE["subtext"])
+
+    # Legend
+    legend_handles = [
+        mlines.Line2D([0], [0], color=PALETTE["amber"], linestyle="--",
+                      linewidth=1.5, label=f"Average"),
+        mlines.Line2D([0], [0], color=PALETTE["red"],   linestyle="--",
+                      linewidth=2.0, label=f"Funding target"),
+        plt.scatter([], [], marker="o", c=PALETTE["green"],  s=55, label="Below avg"),
+        plt.scatter([], [], marker="o", c=line_color,          s=55, label="Normal"),
+        plt.scatter([], [], marker="o", c=PALETTE["red"],    s=55, label="Above target"),
+    ]
+    if excluded_rows:
+        legend_handles.append(
+            mlines.Line2D([0], [0], marker="x", color=PALETTE["gray"],
+                          linestyle="None", markersize=8, label="Excluded")
+        )
+    ax.legend(handles=legend_handles, loc="upper left",
+              framealpha=0.92, edgecolor=PALETTE["grid"],
+              fontsize=8.5, labelcolor=PALETTE["text"])
+
+    ax.set_xlabel("")
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
     out_path = os.path.join(CHARTS_DIR, f"{utility.lower()}.png")
-    plt.savefig(out_path, dpi=150)
+    plt.savefig(out_path, dpi=160, bbox_inches="tight")
     plt.close()
     print(f"  Chart saved: charts/{utility.lower()}.png")
+
+
+def generate_overview_chart(all_results):
+    """Save a 2×2 summary overview of all four utilities."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        import matplotlib.ticker as mticker
+        import datetime
+    except ImportError:
+        return
+
+    os.makedirs(CHARTS_DIR, exist_ok=True)
+
+    fig, axes = plt.subplots(2, 2, figsize=(16, 9))
+    fig.patch.set_facecolor("white")
+    fig.suptitle("Utility Flex Funding — Overview",
+                 fontsize=16, fontweight="bold", color=PALETTE["text"], y=0.98)
+
+    for ax, utility in zip(axes.flat, UTILITIES):
+        if utility not in all_results:
+            ax.set_visible(False)
+            continue
+
+        r = all_results[utility]
+        active = r["active"]
+        line_color = UTILITY_COLOR.get(utility, PALETTE["blue"])
+
+        def to_date(d):
+            return datetime.datetime.strptime(d, "%Y-%m")
+
+        dates   = [to_date(row["date"]) for row in active if row["amount"] > 0]
+        amounts = [row["amount"]         for row in active if row["amount"] > 0]
+
+        _setup_ax(ax)
+        ax.fill_between(dates, amounts, alpha=0.15, color=line_color)
+        ax.plot(dates, amounts, "-", linewidth=2, color=line_color)
+        for d, a in zip(dates, amounts):
+            c = (PALETTE["red"]   if a > r["recommended"] else
+                 PALETTE["green"] if a < r["avg"]          else line_color)
+            ax.scatter([d], [a], s=45, color=c, zorder=4,
+                       edgecolors="white", linewidths=1.4)
+        ax.axhline(r["avg"],         color=PALETTE["amber"], linestyle="--",
+                   linewidth=1.3, alpha=0.8)
+        ax.axhline(r["recommended"], color=PALETTE["red"],   linestyle="--",
+                   linewidth=1.7, alpha=0.9)
+
+        ax.set_title(utility, fontsize=13, fontweight="bold",
+                     color=PALETTE["text"], loc="left", pad=8)
+        ax.set_title(f"fund ${r['recommended']}/mo",
+                     fontsize=10, color=PALETTE["red"], loc="right", pad=8)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=35, ha="right",
+                 fontsize=8, color=PALETTE["subtext"])
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"${v:.0f}"))
+        ax.tick_params(axis="y", labelsize=8, labelcolor=PALETTE["subtext"])
+        if amounts:
+            y_pad = (max(amounts) - min(amounts)) * 0.25 if len(amounts) > 1 else 5
+            ax.set_ylim(max(0, min(amounts) - y_pad), max(amounts) + y_pad * 2)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    out_path = os.path.join(CHARTS_DIR, "overview.png")
+    plt.savefig(out_path, dpi=160, bbox_inches="tight")
+    plt.close()
+    print(f"  Chart saved: charts/overview.png")
 
 
 # ─── Main analysis ────────────────────────────────────────────────────────────
@@ -308,7 +497,9 @@ def analyze():
         if excluded:
             print(f"    Excluded rows:    {len(excluded)} (marked in bills.csv)")
 
-        generate_chart(utility, active, excluded, recommended, s["avg"])
+        generate_chart(utility, active, excluded, recommended, s["avg"], s)
+
+    generate_overview_chart(results)
 
     # ── Summary ────────────────────────────────────────────────────
     print("\n" + "=" * 62)
