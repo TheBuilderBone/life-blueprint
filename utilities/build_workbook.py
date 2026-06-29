@@ -409,7 +409,22 @@ def build_checkin(wb, monthly):
               UTIL_HEX["Trash"], DARK, BLUE, "334155", AMBER, GREEN, DARK]
     header_row(ws, HDR, list(range(1,12)), labels, colors, height=28)
 
-    # ── Data rows ─────────────────────────────────────────────────
+    # ── Pre-compute historical row values ──────────────────────────
+    # Run the buffer/sweep math in Python for every month that has real data
+    # so historical rows display correctly in any viewer (not just Excel).
+    running_buf = BUFFER
+    precomp = {}  # date_str → {total, net, buf, sweep}
+    for date_str in sorted(monthly.keys()):
+        data  = monthly[date_str]
+        total = round(sum((data.get(u) or 0) for u in UTILITIES), 2)
+        net   = round(FUNDED - total, 2)
+        new_buf = round(max(0, min(BUFFER, running_buf + net)), 2)
+        refill  = max(0, BUFFER - running_buf)
+        sweep   = round(max(0, net - refill), 2)
+        precomp[date_str] = {"total": total, "net": net, "buf": new_buf, "sweep": sweep}
+        running_buf = new_buf
+
+    # ── Build month list ────────────────────────────────────────────
     D = HDR + 1   # first data row
     all_months = list(monthly.keys())
 
@@ -423,12 +438,14 @@ def build_checkin(wb, monthly):
     all_rows   = all_months + extra
     hist_count = len(all_months)
 
-    prev_buf_row = None
+    prev_buf_row    = None    # Excel row index of most-recent buffer cell (for formulas)
+    prev_actual_buf = BUFFER  # Python-tracked buffer for blank/carry-forward rows
 
     for i, date_str in enumerate(all_rows):
-        r    = D + i
-        is_h = date_str in monthly
-        bg   = WHITE if i % 2 == 0 else LGRAY
+        r        = D + i
+        pc       = precomp.get(date_str)      # pre-computed values; None if no data
+        is_blank = (date_str == "2026-05")    # known missing month placeholder
+        bg       = WHITE if i % 2 == 0 else LGRAY
         ws.row_dimensions[r].height = 20
 
         data = monthly.get(date_str, {u: None for u in UTILITIES})
@@ -436,10 +453,10 @@ def build_checkin(wb, monthly):
         # A: Month label
         cell(ws, f"A{r}", mlabel(date_str), bold=True, size=9, bg=bg, ha="center")
 
-        # B-E: Utility actuals (pre-filled for historical)
+        # B-E: Utility actuals (pre-filled for historical, blank for future)
         for j, util in enumerate(UTILITIES, 2):
             col = get_column_letter(j)
-            val = data.get(util) if is_h else None
+            val = data.get(util) if date_str in monthly else None
             v   = val if (val is not None and val > 0) else None
             ws[f"{col}{r}"].value         = v
             ws[f"{col}{r}"].fill          = fill(bg)
@@ -448,13 +465,17 @@ def build_checkin(wb, monthly):
             ws[f"{col}{r}"].number_format = '"$"#,##0.00'
 
         # F: Total Actual
-        ws[f"F{r}"] = f"=IFERROR(SUM(B{r}:E{r}),\"\")"
+        if pc:
+            ws[f"F{r}"].value = pc["total"]
+        else:
+            # IF(COUNTA(...)=0,"",SUM(...)) so blank months don't show $0
+            ws[f"F{r}"] = f'=IF(COUNTA(B{r}:E{r})=0,"",SUM(B{r}:E{r}))'
         ws[f"F{r}"].fill          = fill(bg)
         ws[f"F{r}"].font          = Font(bold=True, size=9, color=TEXT, name="Calibri")
         ws[f"F{r}"].alignment     = align("center","center")
         ws[f"F{r}"].number_format = '"$"#,##0.00'
 
-        # G: Funded flat (constant — change here if funding target changes)
+        # G: Funded flat
         ws[f"G{r}"] = FUNDED
         ws[f"G{r}"].fill          = fill(bg)
         ws[f"G{r}"].font          = Font(size=9, color=BLUE, name="Calibri")
@@ -462,34 +483,45 @@ def build_checkin(wb, monthly):
         ws[f"G{r}"].number_format = '"$"#,##0.00'
 
         # H: Net = Funded − Actual
-        ws[f"H{r}"] = f'=IFERROR(G{r}-F{r},"")'
+        if pc:
+            ws[f"H{r}"].value = pc["net"]
+        else:
+            ws[f"H{r}"] = f'=IF(F{r}="","",G{r}-F{r})'
         ws[f"H{r}"].fill          = fill(bg)
         ws[f"H{r}"].font          = Font(bold=True, size=9, color=TEXT, name="Calibri")
         ws[f"H{r}"].alignment     = align("center","center")
         ws[f"H{r}"].number_format = '"$"#,##0.00;[Red]-"$"#,##0.00'
 
-        # I: Buffer Balance  =MAX(0, MIN(buffer_cap, prev_buf + net))
-        if prev_buf_row is None:
-            buf_fx = f'=IFERROR(MAX(0,MIN({BUFFER},{BUFFER}+H{r})),"")'
+        # I: Buffer Balance  MAX(0, MIN(cap, prev_buf + net))
+        # J: Sweep → Savings  MAX(0, net − MAX(0, cap − prev_buf))
+        # Both computed BEFORE updating prev_buf_row so J can reference the
+        # correct previous-month buffer (fixing the original sweep formula bug).
+        if pc:
+            ws[f"I{r}"].value = pc["buf"]
+            ws[f"J{r}"].value = pc["sweep"]
+            prev_actual_buf   = pc["buf"]
+        elif is_blank:
+            ws[f"I{r}"].value = prev_actual_buf  # carry forward, no bills this month
+            ws[f"J{r}"].value = None
         else:
-            buf_fx = f'=IFERROR(MAX(0,MIN({BUFFER},I{prev_buf_row}+H{r})),"")'
-        ws[f"I{r}"] = buf_fx
-        ws[f"I{r}"].fill          = fill(bg)
-        ws[f"I{r}"].font          = font(size=9)
-        ws[f"I{r}"].alignment     = align("center","center")
-        ws[f"I{r}"].number_format = '"$"#,##0.00'
-        prev_buf_row = r
+            # Future row — formulas reference previous buffer row (prev_buf_row),
+            # NOT the current row, so refill math is correct.
+            if prev_buf_row is None:
+                buf_fx   = f'=IF(H{r}="","",MAX(0,MIN({BUFFER},{BUFFER}+H{r})))'
+                sweep_fx = f'=IF(H{r}="","",MAX(0,H{r}))'
+            else:
+                buf_fx   = f'=IF(H{r}="","",MAX(0,MIN({BUFFER},I{prev_buf_row}+H{r})))'
+                sweep_fx = (f'=IF(H{r}="","",MAX(0,H{r}'
+                            f'-MAX(0,{BUFFER}-I{prev_buf_row})))')
+            ws[f"I{r}"] = buf_fx
+            ws[f"J{r}"] = sweep_fx
 
-        # J: Sweep → Savings  =MAX(0, net − refill_needed)
-        # refill_needed = MAX(0, buffer_cap − prev_buffer)
-        if prev_buf_row == r:  # first row, prev buf = BUFFER
-            sweep_fx = f'=IFERROR(MAX(0,H{r}-MAX(0,{BUFFER}-{BUFFER})),"")'
-        else:
-            sweep_fx = f'=IFERROR(MAX(0,H{r}-MAX(0,{BUFFER}-I{r})),"")'
-        ws[f"J{r}"] = sweep_fx
-        ws[f"J{r}"].fill          = fill(bg)
+        for col in ["I", "J"]:
+            ws[f"{col}{r}"].fill      = fill(bg)
+            ws[f"{col}{r}"].alignment = align("center","center")
+        ws[f"I{r}"].font          = font(size=9)
+        ws[f"I{r}"].number_format = '"$"#,##0.00'
         ws[f"J{r}"].font          = Font(size=9, color=GREEN, name="Calibri")
-        ws[f"J{r}"].alignment     = align("center","center")
         ws[f"J{r}"].number_format = '"$"#,##0.00'
 
         # K: Notes
@@ -497,37 +529,61 @@ def build_checkin(wb, monthly):
         ws[f"K{r}"].font      = font(size=9, color=SUB, italic=True)
         ws[f"K{r}"].alignment = align("left","center")
 
+        prev_buf_row = r  # update AFTER I and J are written
+
     # ── Totals row ─────────────────────────────────────────────────
-    last_r = D + len(all_rows) - 1
+    last_r   = D + len(all_rows) - 1
     hist_end = D + hist_count - 1
     TOT = last_r + 2
     ws.row_dimensions[TOT].height = 24
-    ws.merge_cells(f"A{TOT}:A{TOT}")
     ws[f"A{TOT}"] = "TOTALS"
     ws[f"A{TOT}"].fill      = fill(DARK)
     ws[f"A{TOT}"].font      = Font(bold=True, color=WHITE, size=10, name="Calibri")
     ws[f"A{TOT}"].alignment = align("center","center")
-    for c in ["B","C","D","E","F","H","J"]:
-        ws[f"{c}{TOT}"] = f"=SUM({c}{D}:{c}{hist_end})"
+
+    # Pre-compute sums from the precomp dict (excludes May '26 placeholder)
+    hist_months = sorted(monthly.keys())
+    col_sums = {
+        "B": sum(monthly[m].get("Water")    or 0 for m in hist_months),
+        "C": sum(monthly[m].get("Power")    or 0 for m in hist_months),
+        "D": sum(monthly[m].get("Internet") or 0 for m in hist_months),
+        "E": sum(monthly[m].get("Trash")    or 0 for m in hist_months),
+        "F": sum(precomp[m]["total"] for m in hist_months),
+        "H": sum(precomp[m]["net"]   for m in hist_months),
+        "J": sum(precomp[m]["sweep"] for m in hist_months),
+    }
+    for c, v in col_sums.items():
+        ws[f"{c}{TOT}"].value         = round(v, 2)
         ws[f"{c}{TOT}"].fill          = fill(DARK)
         ws[f"{c}{TOT}"].font          = Font(bold=True, color=WHITE, size=10, name="Calibri")
         ws[f"{c}{TOT}"].alignment     = align("center","center")
         ws[f"{c}{TOT}"].number_format = '"$"#,##0.00'
-    ws[f"G{TOT}"] = f"={FUNDED}*{hist_count}"
+    ws[f"G{TOT}"].value         = round(FUNDED * len(hist_months), 2)
     ws[f"G{TOT}"].fill          = fill(DARK)
     ws[f"G{TOT}"].font          = Font(bold=True, color=WHITE, size=10, name="Calibri")
     ws[f"G{TOT}"].alignment     = align("center","center")
     ws[f"G{TOT}"].number_format = '"$"#,##0.00'
 
-    # Averages row
+    # ── Averages row ────────────────────────────────────────────────
     AVG = TOT + 1
+    n   = len(hist_months)
     ws.row_dimensions[AVG].height = 20
     ws[f"A{AVG}"] = "AVERAGES"
     ws[f"A{AVG}"].fill      = fill(LGRAY)
     ws[f"A{AVG}"].font      = Font(bold=True, size=9, color=TEXT, name="Calibri")
     ws[f"A{AVG}"].alignment = align("center","center")
-    for c in ["B","C","D","E","F","H"]:
-        ws[f"{c}{AVG}"] = f"=IFERROR({c}{TOT}/COUNTA({c}{D}:{c}{hist_end}),\"\")"
+    avg_vals = {
+        "B": round(col_sums["B"] / n, 2),
+        "C": round(col_sums["C"] / n, 2),
+        "D": round(col_sums["D"] / n, 2),
+        "E": round(col_sums["E"] / n, 2),
+        "F": round(col_sums["F"] / n, 2),
+        "G": FUNDED,
+        "H": round(col_sums["H"] / n, 2),
+        "J": round(col_sums["J"] / n, 2),
+    }
+    for c, v in avg_vals.items():
+        ws[f"{c}{AVG}"].value         = v
         ws[f"{c}{AVG}"].fill          = fill(LGRAY)
         ws[f"{c}{AVG}"].font          = font(size=9)
         ws[f"{c}{AVG}"].alignment     = align("center","center")
