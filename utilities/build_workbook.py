@@ -22,6 +22,31 @@ UTILITIES = ["Water", "Power", "Internet", "Trash"]
 FUNDED    = 630
 BUFFER    = 167.63
 
+# ── Pre-computed budget values ─────────────────────────────────────────────────
+# Python equivalents of every Excel formula in The System tab so the file
+# displays correct numbers in any viewer (Google Sheets, LibreOffice, preview).
+_CC        = 2560;  _SIDE = 480;   _SHANE = 628
+_MORTGAGE  = 837;   _HINS = 190;   _AINS  = 79;  _PTAX = 54; _PHONE = 55
+_WATER     = 90;    _POWER = 453;  _INET  = 64;  _TRASH = 23
+_GAS       = 430;   _GROC  = 400;  _SPEND = 500
+_LEAK_HDG  = 45;    _INET_SURP = 39
+
+INCOME_TOTAL  = _CC + _SIDE + _SHANE                          # 3668
+FIXED_TOTAL   = _MORTGAGE + _HINS + _AINS + _PTAX + _PHONE   # 1215
+UTIL_SUB      = _WATER + _POWER + _INET + _TRASH              # 630
+FLEX_TOTAL_PY = UTIL_SUB + _GAS + _GROC                       # 1460
+LEFTOVER_PY   = INCOME_TOTAL - FIXED_TOTAL - FLEX_TOTAL_PY    # 993
+SHANE_CONT    = LEFTOVER_PY - _SHANE                          # 365
+SAVINGS_PY    = LEFTOVER_PY - _SPEND                          # 493
+PAD_TOTAL     = _LEAK_HDG + _INET_SURP                        # 84
+SE_RESERVE_PY = round(_SIDE * 0.28, 2)                        # 134.40
+SE_NET_PY     = _SIDE - SE_RESERVE_PY                         # 345.60
+SINK_TOTAL_PY = 75 + 17 + 0                                   # 92
+EST_TH_PY     = round(22 * 40 * 52 / 12 * 0.72, 2)           # 2745.60
+INCOME_GAIN_PY = round(EST_TH_PY - _CC, 2)                   # 185.60
+TRUE_AVAIL_PY = round(LEFTOVER_PY - SE_RESERVE_PY - SINK_TOTAL_PY, 2)  # 766.60
+SHANE_FL_PY   = round(TRUE_AVAIL_PY - _SHANE, 2)             # 138.60
+
 # ── Palette ────────────────────────────────────────────────────────────────────
 DARK  = "0F172A"; TEXT  = "1E293B"; SUB   = "64748B"
 BLUE  = "2563EB"; LBLUE = "DBEAFE"; ABLUE = "EFF6FF"
@@ -176,7 +201,7 @@ def build_system(wb):
     row(r, "Side work  ($15 × 8hr × 4d)", 480,    note="Variable — could flex up or down"); r+=1
     row(r, "Shane (rent + utility share)", 628,    note="⚠ AT RISK — see contingency below"); r+=1
     inc_row = r
-    row(r, "TOTAL SPENDABLE", fx="=C5+C6+C7", bold=True, bg=ABLUE); r+=1
+    row(r, "TOTAL SPENDABLE", val=INCOME_TOTAL, bold=True, bg=ABLUE); r+=1
     row(r, "Motus reimbursement  (~$372/mo)", note="NOT income — offsets commute gas; don't spend as fun money."); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -187,7 +212,7 @@ def build_system(wb):
     row(r, "Property tax  (set-aside)",54); r+=1
     row(r, "Phone",                    55,  bg=LGRAY); r+=1
     fixed_r = r
-    row(r, "FIXED TOTAL", fx=f"=SUM(C{r-5}:C{r-1})", bold=True, bg=ABLUE); r+=1
+    row(r, "FIXED TOTAL", val=FIXED_TOTAL, bold=True, bg=ABLUE); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
     sec(r, "ACCOUNT 2 · FLEX  — fund $630 flat every month", AMBER); r+=1
@@ -199,11 +224,11 @@ def build_system(wb):
         note="Currently $24.95/mo promo — ~$39/mo sweeps to savings until rate changes"); r+=1
     row(r, "Trash",                                23); r+=1
     util_r = r
-    row(r, "UTILITIES SUBTOTAL  (fund flat)", fx=f"=SUM(C{r-4}:C{r-1})", bold=True, bg=ABLUE); r+=1
+    row(r, "UTILITIES SUBTOTAL  (fund flat)", val=UTIL_SUB, bold=True, bg=ABLUE); r+=1
     row(r, "Gas  (commute, est.)",   430, bg=LGRAY, note="Motus ~$372 offsets; real net gas ≈ $58"); r+=1
     row(r, "Groceries  (est.)",      400); r+=1
     flex_r = r
-    row(r, "FLEX TOTAL", fx=f"=C{util_r}+430+400", bold=True, bg=ABLUE); r+=1
+    row(r, "FLEX TOTAL", val=FLEX_TOTAL_PY, bold=True, bg=ABLUE); r+=1
     row(r, "⚓  Standing buffer  (never sweep)", 167.63, bg=LGRAY,
         note="Absorbs worst single month across all utilities simultaneously"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
@@ -211,9 +236,9 @@ def build_system(wb):
     sec(r, "LEFTOVER  →  splits to savings + spending", GREEN); r+=1
     left_r = r
     row(r, "Leftover after fixed + flex",
-        fx=f"=C{inc_row}-C{fixed_r}-C{flex_r}", bold=True, bg=ABLUE); r+=1
+        val=LEFTOVER_PY, bold=True, bg=ABLUE); r+=1
     row(r, "⚠  If Shane's $628 stops → leftover",
-        fx=f"=C{left_r}-628", bold=True, bg="FEF9C3",
+        val=SHANE_CONT, bold=True, bg="FEF9C3",
         note="PLAN AROUND THIS NUMBER  ·  treat Shane's $628 as a savings bonus if it comes"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -222,7 +247,7 @@ def build_system(wb):
         note="Only card in your wallet. Balance = your tracker. Lower this to save more."); r+=1
     spend_r = r-1
     row(r, "SAVINGS — SoFi Vaults  (what's left)",
-        fx=f"=C{left_r}-C{spend_r}", bg=LGREEN,
+        val=SAVINGS_PY, bg=LGREEN,
         note="Emergency Fund + Move/Career Fund  ·  paid FIRST on payday"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -231,22 +256,22 @@ def build_system(wb):
         note="Run: python analyze.py exclude Water 2026-04 / 2026-06 to recalculate"); r+=1
     row(r, "Internet promo surplus  (~$39/mo right now)", 39,
         note="Sweeps automatically until rate changes"); r+=1
-    row(r, "Hidden savings in flex (approx.)", fx=f"=C{r-2}+C{r-1}",
+    row(r, "Hidden savings in flex (approx.)", val=PAD_TOTAL,
         bold=True, bg=LGREEN); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
     # ── Self-employment tax reserve ────────────────────────────────
     sec(r, "SELF-EMPLOYMENT TAX RESERVE  (1099 side work)", "7C3AED"); r+=1
     # Row 6 = side work ($480) — known from build order above
-    row(r, "Side work gross  (from income above)", fx="=C6", bg=LGRAY,
+    row(r, "Side work gross  (from income above)", val=_SIDE, bg=LGRAY,
         note="1099 — no taxes withheld; this must come out before you touch the money"); r+=1
     se_show_r = r - 1
     se_reserve_r = r
     row(r, "Monthly reserve  (28% — SE tax 15.3% + income tax est.)",
-        fx=f"=C{se_show_r}*0.28", bold=True, bg="EDE9FE",
+        val=SE_RESERVE_PY, bold=True, bg="EDE9FE",
         note="Transfer on every payday before spending any side income"); r+=1
     row(r, "True spendable from side work",
-        fx=f"=C{se_show_r}-C{se_reserve_r}", bg=LGRAY,
+        val=SE_NET_PY, bg=LGRAY,
         note="What's actually yours after the tax reserve is parked"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -260,7 +285,7 @@ def build_system(wb):
         note="$0 if already paying monthly — update if any biller charges annually"); r+=1
     sink_r = r
     row(r, "SINKING TOTAL  — set aside monthly",
-        fx=f"=SUM(C{r-3}:C{r-1})", bold=True, bg=ABLUE,
+        val=SINK_TOTAL_PY, bold=True, bg=ABLUE,
         note="Park in a labeled savings vault; pull from it when the bill hits"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -283,11 +308,11 @@ def build_system(wb):
     ws[f"C{r-1}"].fill          = fill(LGRAY)
     ws[f"C{r-1}"].alignment     = align("right")
     row(r, "Est. take-home at $22/hr  (40hr/wk, ~72% net)",
-        fx="=22*40*52/12*0.72",
+        val=EST_TH_PY,
         note="Rough estimate — actual varies by deductions"); r+=1
     est_r = r - 1
     row(r, "Monthly income gain at target",
-        fx=f"=C{est_r}-C{current_th_r}", bold=True, bg=LGREEN,
+        val=INCOME_GAIN_PY, bold=True, bg=LGREEN,
         note="Extra per month once you land the better role"); r+=1
     ws.row_dimensions[r].height = 8; r+=1
 
@@ -335,14 +360,14 @@ def build_system(wb):
 
     # ── Revised bottom line (accounts for everything) ──────────────
     sec(r, "REVISED MONTHLY PICTURE  (after tax reserve + sinking funds)", DARK); r+=1
-    row(r, "Gross leftover  (after fixed + flex)", fx=f"=C{left_r}", bg=LGRAY); r+=1
-    row(r, "  Less: SE tax reserve", fx=f"=-C{se_reserve_r}"); r+=1
-    row(r, "  Less: sinking funds", fx=f"=-C{sink_r}", bg=LGRAY); r+=1
+    row(r, "Gross leftover  (after fixed + flex)", val=LEFTOVER_PY, bg=LGRAY); r+=1
+    row(r, "  Less: SE tax reserve", val=-SE_RESERVE_PY); r+=1
+    row(r, "  Less: sinking funds", val=-SINK_TOTAL_PY, bg=LGRAY); r+=1
     true_left_r = r
     row(r, "TRUE MONTHLY AVAILABLE",
-        fx=f"=C{left_r}-C{se_reserve_r}-C{sink_r}", bold=True, bg=ABLUE); r+=1
+        val=TRUE_AVAIL_PY, bold=True, bg=ABLUE); r+=1
     row(r, "  If Shane's $628 stops → true available",
-        fx=f"=C{true_left_r}-628", bold=True, bg="FEF9C3",
+        val=SHANE_FL_PY, bold=True, bg="FEF9C3",
         note="Hard number — build the system around this floor"); r+=1
 
     return ws
@@ -773,6 +798,7 @@ def main():
     monthly = get_monthly(rows)
 
     wb = Workbook()
+    wb.calculation.fullCalcOnLoad = True
     build_system(wb)
     build_checkin(wb, monthly)
     build_per_utility(wb, monthly)
