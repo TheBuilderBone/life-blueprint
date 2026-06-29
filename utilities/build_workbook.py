@@ -854,22 +854,36 @@ CATEGORY_KEYWORDS = [
     ("SHELL",        "Gas"),  ("EXXON",       "Gas"),  ("CHEVRON",   "Gas"),
     ("MARATHON",     "Gas"),  ("CIRCLE K",    "Gas"),  ("MURPHY",    "Gas"),
     ("RACEWAY",      "Gas"),  ("QUIKTRIP",    "Gas"),  ("BP ",       "Gas"),
-    ("PILOT",        "Gas"),
+    ("PILOT",        "Gas"),  ("MAPCO",       "Gas"),  ("TEXACO",    "Gas"),
+    ("HT EXPRESS",   "Gas"),  ("SITE",        "Gas"),
     # Groceries
-    ("WALMART",      "Groceries"), ("PUBLIX",  "Groceries"), ("KROGER",  "Groceries"),
-    ("ALDI",         "Groceries"), ("WINN",    "Groceries"), ("FOOD GIANT","Groceries"),
-    ("SAMS",         "Groceries"), ("GROCER",  "Groceries"),
+    ("WALMART",      "Groceries"), ("WAL-MART",   "Groceries"), ("W. M. ",     "Groceries"),
+    ("PUBLIX",       "Groceries"), ("KROGER",     "Groceries"),
+    ("ALDI",         "Groceries"), ("WINN",       "Groceries"), ("FOOD GIANT", "Groceries"),
+    ("SAMS",         "Groceries"), ("GROCER",     "Groceries"),
+    ("PIC'N SAVE",   "Groceries"), ("DORSEY",     "Groceries"), ("PIGGLY",     "Groceries"),
+    ("PERRYLAND",    "Groceries"), ("BREEDS",     "Groceries"), ("MUNFORD",    "Groceries"),
     # Spending / dining / misc
-    ("MCDONALD",   "Spending"), ("BURGER",    "Spending"), ("WENDY",    "Spending"),
-    ("TACO",       "Spending"), ("CHICK",     "Spending"), ("STARBUCK", "Spending"),
-    ("DOORDASH",   "Spending"), ("UBER EATS", "Spending"), ("BAR ",     "Spending"),
-    ("LIQUOR",     "Spending"), ("AMAZON",    "Spending"), ("DOLLAR",   "Spending"),
+    ("MCDONALD",    "Spending"), ("BURGER",      "Spending"), ("WENDY",       "Spending"),
+    ("TACO",        "Spending"), ("CHICK",       "Spending"), ("STARBUCK",    "Spending"),
+    ("DOORDASH",    "Spending"), ("UBER EATS",   "Spending"), ("BAR ",        "Spending"),
+    ("LIQUOR",      "Spending"), ("AMAZON",      "Spending"), ("DOLLAR",      "Spending"),
+    ("JACK'S",      "Spending"), ("WHATABURGER", "Spending"), ("COOK OUT",    "Spending"),
+    ("BOJANGLES",   "Spending"), ("WAFFLE HOUSE","Spending"), ("LITTLE CAES", "Spending"),
+    ("DOMINO",      "Spending"), ("SUBWAY",      "Spending"), ("DAIRY QUEEN", "Spending"),
+    ("ZAXBY",       "Spending"), ("BAJA",        "Spending"), ("ROCK N ROOST","Spending"),
+    ("JEFFERSON",   "Spending"), ("CASH APP",    "Spending"),
+    ("NETFLIX",     "Spending"), ("SPOTIFY",     "Spending"), ("APPLE.COM",   "Spending"),
+    ("CLAUDE",      "Spending"), ("ANTHROPIC",   "Spending"), ("TINDER",      "Spending"),
+    ("OURARING",    "Spending"),
+    ("ADVANCE AUTO","Spending"), ("AUTOZONE",    "Spending"), ("ROCK AUTO",   "Spending"),
+    ("HARBOR FREIGHT","Spending"),("EXPRESS OIL","Spending"), ("LOWE'S",      "Spending"),
     # Utilities
     ("ALABAMA POWER","Power"),  ("POWER CO",  "Power"),   ("ELECTRIC", "Power"),
-    ("WATER",        "Water"),  ("SEWER",     "Water"),
-    ("SPECTRUM",     "Internet"),("XFINITY",  "Internet"),("COMCAST",  "Internet"),
-    ("INTERNET",     "Internet"),
-    ("WASTE",        "Trash"),  ("SANITATION","Trash"),   ("TRASH",    "Trash"),
+    ("CALHOUN COUNTY","Water"), ("WATER",     "Water"),   ("SEWER",    "Water"),
+    ("SPARKLIGHT",  "Internet"),("SPECTRUM",  "Internet"),("XFINITY",  "Internet"),
+    ("COMCAST",     "Internet"),("INTERNET",  "Internet"),
+    ("WASTE",       "Trash"),   ("SANITATION","Trash"),   ("TRASH",    "Trash"),
     # Fixed bills
     ("MORTGAGE",     "Mortgage"),("LOAN PMT", "Mortgage"),
     ("INSURANCE",    "Insurance"),("GEICO",   "Insurance"),("STATE FARM","Insurance"),
@@ -881,7 +895,7 @@ CATEGORY_KEYWORDS = [
 ]
 # Transactions rows start at this Excel row (must match build_transactions)
 _TXN_DATA_START = 6
-_TXN_DATA_END   = 205   # 200 rows of transaction data
+_TXN_DATA_END   = 1005  # 1000 rows of transaction data (handles full SoFi CSV export)
 
 def build_category_rules(wb):
     ws = wb.create_sheet("Category Rules")
@@ -928,7 +942,7 @@ def build_category_rules(wb):
         ws[f"{col}5"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
         ws[f"{col}5"].alignment = align("left","center")
 
-    # Data rows (rows 6–75, matching formula range in Transactions)
+    # Data rows (rows 6–125, matching formula range in Transactions)
     for i, (kw, cat) in enumerate(CATEGORY_KEYWORDS):
         r  = 6 + i
         bg = WHITE if i % 2 == 0 else LGRAY
@@ -949,8 +963,8 @@ def build_category_rules(wb):
         ws[f"D{r}"].font      = font(size=9, color=SUB, italic=True)
         ws[f"D{r}"].alignment = align("left","center")
 
-    # Empty rows for user additions (62–75)
-    for i in range(len(CATEGORY_KEYWORDS), 70):
+    # Empty rows for user additions (up to row 125)
+    for i in range(len(CATEGORY_KEYWORDS), 120):
         r  = 6 + i
         bg = WHITE if i % 2 == 0 else LGRAY
         ws.row_dimensions[r].height = 18
@@ -974,9 +988,9 @@ SAMPLE_TRANSACTIONS = [
 def _cat_fx(r):
     return (
         f"=IF($C{r}=\"\",\"\",IFERROR(LOOKUP(2,"
-        f"1/((ISNUMBER(SEARCH('Category Rules'!$B$6:$B$75,$C{r})))"
-        f"*('Category Rules'!$B$6:$B$75<>\"\")),"
-        f"'Category Rules'!$C$6:$C$75),\"Uncategorized\"))"
+        f"1/((ISNUMBER(SEARCH('Category Rules'!$B$6:$B$125,$C{r})))"
+        f"*('Category Rules'!$B$6:$B$125<>\"\")),"
+        f"'Category Rules'!$C$6:$C$125),\"Uncategorized\"))"
     )
 
 def build_transactions(wb):
@@ -1026,7 +1040,7 @@ def build_transactions(wb):
         ws[f"{col}{HDR}"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
         ws[f"{col}{HDR}"].alignment = align("center","center")
 
-    # Data rows (6–205: 200 rows)
+    # Data rows (6–1005: 1000 rows)
     for i in range(_TXN_DATA_END - _TXN_DATA_START + 1):
         r  = _TXN_DATA_START + i
         bg = WHITE if i % 2 == 0 else LGRAY
