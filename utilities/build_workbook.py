@@ -847,6 +847,399 @@ def build_calendar(wb):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# SHEET 5 — Category Rules  (keyword → spending category lookup table)
+# ══════════════════════════════════════════════════════════════════════════════
+CATEGORY_KEYWORDS = [
+    # Gas stations
+    ("SHELL",        "Gas"),  ("EXXON",       "Gas"),  ("CHEVRON",   "Gas"),
+    ("MARATHON",     "Gas"),  ("CIRCLE K",    "Gas"),  ("MURPHY",    "Gas"),
+    ("RACEWAY",      "Gas"),  ("QUIKTRIP",    "Gas"),  ("BP ",       "Gas"),
+    ("PILOT",        "Gas"),
+    # Groceries
+    ("WALMART",      "Groceries"), ("PUBLIX",  "Groceries"), ("KROGER",  "Groceries"),
+    ("ALDI",         "Groceries"), ("WINN",    "Groceries"), ("FOOD GIANT","Groceries"),
+    ("SAMS",         "Groceries"), ("GROCER",  "Groceries"),
+    # Spending / dining / misc
+    ("MCDONALD",   "Spending"), ("BURGER",    "Spending"), ("WENDY",    "Spending"),
+    ("TACO",       "Spending"), ("CHICK",     "Spending"), ("STARBUCK", "Spending"),
+    ("DOORDASH",   "Spending"), ("UBER EATS", "Spending"), ("BAR ",     "Spending"),
+    ("LIQUOR",     "Spending"), ("AMAZON",    "Spending"), ("DOLLAR",   "Spending"),
+    # Utilities
+    ("ALABAMA POWER","Power"),  ("POWER CO",  "Power"),   ("ELECTRIC", "Power"),
+    ("WATER",        "Water"),  ("SEWER",     "Water"),
+    ("SPECTRUM",     "Internet"),("XFINITY",  "Internet"),("COMCAST",  "Internet"),
+    ("INTERNET",     "Internet"),
+    ("WASTE",        "Trash"),  ("SANITATION","Trash"),   ("TRASH",    "Trash"),
+    # Fixed bills
+    ("MORTGAGE",     "Mortgage"),("LOAN PMT", "Mortgage"),
+    ("INSURANCE",    "Insurance"),("GEICO",   "Insurance"),("STATE FARM","Insurance"),
+    ("ALLSTATE",     "Insurance"),("PROGRESSIVE","Insurance"),
+    ("VERIZON",      "Phone"),  ("T-MOBILE",  "Phone"),   ("CRICKET",  "Phone"),
+    ("AT&T",         "Phone"),
+    # Savings transfers
+    ("TRANSFER",     "Savings"),("VAULT",     "Savings"), ("SAVINGS",  "Savings"),
+]
+# Transactions rows start at this Excel row (must match build_transactions)
+_TXN_DATA_START = 6
+_TXN_DATA_END   = 205   # 200 rows of transaction data
+
+def build_category_rules(wb):
+    ws = wb.create_sheet("Category Rules")
+    ws.sheet_view.showGridLines = False
+
+    ws.column_dimensions["A"].width = 2
+    ws.column_dimensions["B"].width = 26
+    ws.column_dimensions["C"].width = 16
+    ws.column_dimensions["D"].width = 30
+
+    # Title
+    ws.merge_cells("A1:D1")
+    ws["A1"] = "CATEGORY RULES"
+    ws["A1"].fill      = fill(DARK)
+    ws["A1"].font      = Font(bold=True, size=16, color=WHITE, name="Calibri")
+    ws["A1"].alignment = align("left","center")
+    ws.row_dimensions[1].height = 32
+
+    ws.merge_cells("A2:D2")
+    ws["A2"] = ("Keyword in a merchant description → spending category. "
+                "Edit freely — add your own merchants below the last row.")
+    ws["A2"].fill      = fill(LGRAY)
+    ws["A2"].font      = font(italic=True, size=9, color=SUB)
+    ws["A2"].alignment = align("left","center")
+    ws.row_dimensions[2].height = 18
+
+    # How-to note
+    ws.merge_cells("A3:D3")
+    ws["A3"] = ("Matching is case-insensitive and partial — \"SHELL\" matches "
+                "\"SHELL #1234 JACKSONVILLE\". First match wins. "
+                "Leave OVERRIDE blank on the Transactions tab to use AUTO CAT.")
+    ws["A3"].fill      = fill(ABLUE)
+    ws["A3"].font      = font(italic=True, size=9, color=BLUE)
+    ws["A3"].alignment = align("left","center", wrap=True)
+    ws.row_dimensions[3].height = 28
+
+    # Header
+    ws.row_dimensions[4].height = 4
+    ws.row_dimensions[5].height = 22
+    for col, lbl, w in [("B","KEYWORD (partial match, case-insensitive)","26"),
+                         ("C","CATEGORY","16"), ("D","NOTES","30")]:
+        ws[f"{col}5"] = lbl
+        ws[f"{col}5"].fill      = fill(AMBER)
+        ws[f"{col}5"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
+        ws[f"{col}5"].alignment = align("left","center")
+
+    # Data rows (rows 6–75, matching formula range in Transactions)
+    for i, (kw, cat) in enumerate(CATEGORY_KEYWORDS):
+        r  = 6 + i
+        bg = WHITE if i % 2 == 0 else LGRAY
+        ws.row_dimensions[r].height = 18
+
+        ws[f"A{r}"].fill = fill(bg)
+        ws[f"B{r}"].value     = kw
+        ws[f"B{r}"].fill      = fill(bg)
+        ws[f"B{r}"].font      = Font(size=9, color=BLUE, bold=True, name="Calibri")
+        ws[f"B{r}"].alignment = align("left","center")
+
+        ws[f"C{r}"].value     = cat
+        ws[f"C{r}"].fill      = fill(bg)
+        ws[f"C{r}"].font      = font(size=9, color=TEXT)
+        ws[f"C{r}"].alignment = align("left","center")
+
+        ws[f"D{r}"].fill      = fill(bg)
+        ws[f"D{r}"].font      = font(size=9, color=SUB, italic=True)
+        ws[f"D{r}"].alignment = align("left","center")
+
+    # Empty rows for user additions (62–75)
+    for i in range(len(CATEGORY_KEYWORDS), 70):
+        r  = 6 + i
+        bg = WHITE if i % 2 == 0 else LGRAY
+        ws.row_dimensions[r].height = 18
+        for c in ["A","B","C","D"]:
+            ws[f"{c}{r}"].fill = fill(bg)
+        ws[f"B{r}"].font      = Font(size=9, color=BLUE, bold=True, name="Calibri")
+        ws[f"C{r}"].font      = font(size=9, color=TEXT)
+
+    return ws
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHEET 6 — Transactions  (paste bank CSV here; auto-categorizes)
+# ══════════════════════════════════════════════════════════════════════════════
+SAMPLE_TRANSACTIONS = [
+    ("2026-06-15", "SHELL #1234 JACKSONVILLE",  58.40),
+    ("2026-06-16", "WALMART SUPERCENTER",        92.13),
+    ("2026-06-18", "MCDONALDS F12",              11.50),
+]
+# Lookup formula: scans every keyword in Category Rules, returns first match
+def _cat_fx(r):
+    return (
+        f"=IF($C{r}=\"\",\"\",IFERROR(LOOKUP(2,"
+        f"1/((ISNUMBER(SEARCH('Category Rules'!$B$6:$B$75,$C{r})))"
+        f"*('Category Rules'!$B$6:$B$75<>\"\")),"
+        f"'Category Rules'!$C$6:$C$75),\"Uncategorized\"))"
+    )
+
+def build_transactions(wb):
+    ws = wb.create_sheet("Transactions")
+    ws.sheet_view.showGridLines = False
+
+    col_w = {"A":2,"B":12,"C":34,"D":12,"E":15,"F":14,"G":15,"H":12}
+    for c, w in col_w.items():
+        ws.column_dimensions[c].width = w
+
+    # Title
+    ws.merge_cells("A1:H1")
+    ws["A1"] = "TRANSACTIONS — paste from any CSV export"
+    ws["A1"].fill      = fill(DARK)
+    ws["A1"].font      = Font(bold=True, size=16, color=WHITE, name="Calibri")
+    ws["A1"].alignment = align("left","center")
+    ws.row_dimensions[1].height = 32
+
+    ws.merge_cells("A2:H2")
+    ws["A2"] = ("Paste Date / Description / Amount into the blue columns (B, C, D). "
+                "AUTO CAT fills itself from Category Rules. "
+                "Use OVERRIDE (col F) to correct a wrong category for one row.")
+    ws["A2"].fill      = fill(LGRAY)
+    ws["A2"].font      = font(italic=True, size=9, color=SUB)
+    ws["A2"].alignment = align("left","center")
+    ws.row_dimensions[2].height = 18
+
+    ws.merge_cells("A3:H3")
+    ws["A3"] = ("Amounts: paste spending as POSITIVE numbers. "
+                "Add merchants to Category Rules whenever AUTO CAT shows \"Uncategorized\".")
+    ws["A3"].fill      = fill(ABLUE)
+    ws["A3"].font      = font(italic=True, size=9, color=BLUE)
+    ws["A3"].alignment = align("left","center", wrap=True)
+    ws.row_dimensions[3].height = 24
+
+    # Header row
+    ws.row_dimensions[4].height = 4
+    HDR = 5
+    ws.row_dimensions[HDR].height = 22
+    hdr_labels = {"B":"DATE","C":"DESCRIPTION","D":"AMOUNT",
+                  "E":"AUTO CAT","F":"OVERRIDE","G":"FINAL CAT","H":"MONTH"}
+    hdr_bg = {"B":BLUE,"C":BLUE,"D":BLUE,
+               "E":"7C3AED","F":AMBER,"G":GREEN,"H":DARK}
+    for col, lbl in hdr_labels.items():
+        ws[f"{col}{HDR}"] = lbl
+        ws[f"{col}{HDR}"].fill      = fill(hdr_bg[col])
+        ws[f"{col}{HDR}"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
+        ws[f"{col}{HDR}"].alignment = align("center","center")
+
+    # Data rows (6–205: 200 rows)
+    for i in range(_TXN_DATA_END - _TXN_DATA_START + 1):
+        r  = _TXN_DATA_START + i
+        bg = WHITE if i % 2 == 0 else LGRAY
+
+        # Sample data for first 3 rows
+        if i < len(SAMPLE_TRANSACTIONS):
+            date_v, desc_v, amt_v = SAMPLE_TRANSACTIONS[i]
+        else:
+            date_v, desc_v, amt_v = None, None, None
+
+        ws.row_dimensions[r].height = 18
+
+        ws[f"A{r}"].fill = fill(bg)
+
+        # B: Date (blue, user input)
+        ws[f"B{r}"].value         = date_v
+        ws[f"B{r}"].fill          = fill(ABLUE if date_v else bg)
+        ws[f"B{r}"].font          = Font(size=9, color=BLUE if date_v else TEXT, name="Calibri")
+        ws[f"B{r}"].alignment     = align("center","center")
+        ws[f"B{r}"].number_format = "YYYY-MM-DD"
+
+        # C: Description (blue, user input)
+        ws[f"C{r}"].value     = desc_v
+        ws[f"C{r}"].fill      = fill(ABLUE if desc_v else bg)
+        ws[f"C{r}"].font      = Font(size=9, color=BLUE if desc_v else TEXT, name="Calibri")
+        ws[f"C{r}"].alignment = align("left","center")
+
+        # D: Amount (blue, user input)
+        ws[f"D{r}"].value         = amt_v
+        ws[f"D{r}"].fill          = fill(ABLUE if amt_v else bg)
+        ws[f"D{r}"].font          = Font(size=9, color=BLUE if amt_v else TEXT, name="Calibri")
+        ws[f"D{r}"].alignment     = align("center","center")
+        ws[f"D{r}"].number_format = '"$"#,##0.00'
+
+        # E: AUTO CAT (formula — reads Description, looks up Category Rules)
+        ws[f"E{r}"] = _cat_fx(r)
+        ws[f"E{r}"].fill      = fill(bg)
+        ws[f"E{r}"].font      = Font(size=9, color="7C3AED", name="Calibri")
+        ws[f"E{r}"].alignment = align("center","center")
+
+        # F: Override (user types here to correct category)
+        ws[f"F{r}"].fill      = fill(LAMBER if not amt_v else bg)
+        ws[f"F{r}"].font      = font(size=9, color=AMBER)
+        ws[f"F{r}"].alignment = align("center","center")
+
+        # G: Final Cat = Override if set, else AUTO CAT
+        ws[f"G{r}"] = f'=IF($C{r}="","",IF($F{r}<>"",$F{r},$E{r}))'
+        ws[f"G{r}"].fill      = fill(bg)
+        ws[f"G{r}"].font      = Font(size=9, color=GREEN, name="Calibri")
+        ws[f"G{r}"].alignment = align("center","center")
+
+        # H: Month label derived from date
+        ws[f"H{r}"] = f'=IF($B{r}="","",TEXT($B{r},"mmm yyyy"))'
+        ws[f"H{r}"].fill      = fill(bg)
+        ws[f"H{r}"].font      = font(size=9, color=SUB)
+        ws[f"H{r}"].alignment = align("center","center")
+
+    return ws
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SHEET 7 — Monthly Actuals  (SUMIFS from Transactions; type month to filter)
+# ══════════════════════════════════════════════════════════════════════════════
+_ACTUALS_CATS = [
+    ("Power",     _POWER),
+    ("Water",     _WATER),
+    ("Internet",  _INET),
+    ("Trash",     _TRASH),
+    ("Gas",       _GAS),
+    ("Groceries", _GROC),
+    ("Spending",  _SPEND),
+]
+_TXN_G = f"Transactions!$G${_TXN_DATA_START}:$G${_TXN_DATA_END}"  # Final Cat range
+_TXN_D = f"Transactions!$D${_TXN_DATA_START}:$D${_TXN_DATA_END}"  # Amount range
+_TXN_H = f"Transactions!$H${_TXN_DATA_START}:$H${_TXN_DATA_END}"  # Month range
+
+def build_monthly_actuals(wb):
+    ws = wb.create_sheet("Monthly Actuals")
+    ws.sheet_view.showGridLines = False
+
+    col_w = {"A":2,"B":18,"C":13,"D":13,"E":16,"F":2}
+    for c, w in col_w.items():
+        ws.column_dimensions[c].width = w
+
+    # Title
+    ws.merge_cells("A1:E1")
+    ws["A1"] = "MONTHLY ACTUALS vs TARGET"
+    ws["A1"].fill      = fill(DARK)
+    ws["A1"].font      = Font(bold=True, size=16, color=WHITE, name="Calibri")
+    ws["A1"].alignment = align("left","center")
+    ws.row_dimensions[1].height = 32
+
+    ws.merge_cells("A2:E2")
+    ws["A2"] = ("Type a month in the blue cell below → actuals pull from your "
+                "pasted transactions automatically.")
+    ws["A2"].fill      = fill(LGRAY)
+    ws["A2"].font      = font(italic=True, size=9, color=SUB)
+    ws["A2"].alignment = align("left","center")
+    ws.row_dimensions[2].height = 18
+
+    ws.row_dimensions[3].height = 8
+
+    # Month input row
+    ws.row_dimensions[4].height = 26
+    ws["B4"] = "Month to view:"
+    ws["B4"].fill      = fill(WHITE)
+    ws["B4"].font      = font(bold=True, size=10)
+    ws["B4"].alignment = align("left","center")
+
+    ws["C4"] = "Jun 2026"   # default / example
+    ws["C4"].fill      = fill(LBLUE)
+    ws["C4"].font      = Font(bold=True, size=10, color=BLUE, name="Calibri")
+    ws["C4"].alignment = align("center","center")
+
+    ws["D4"] = "(type like 'Jun 2026')"
+    ws["D4"].fill      = fill(WHITE)
+    ws["D4"].font      = font(italic=True, size=9, color=SUB)
+    ws["D4"].alignment = align("left","center")
+
+    ws.row_dimensions[5].height = 4
+
+    # Header row
+    HDR = 6
+    ws.row_dimensions[HDR].height = 22
+    for col, lbl, bg in [("B","CATEGORY",DARK),("C","TARGET",BLUE),
+                          ("D","ACTUAL","7C3AED"),("E","+ UNDER  /  − OVER",GREEN)]:
+        ws[f"{col}{HDR}"] = lbl
+        ws[f"{col}{HDR}"].fill      = fill(bg)
+        ws[f"{col}{HDR}"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
+        ws[f"{col}{HDR}"].alignment = align("center","center")
+
+    # Data rows: one per category
+    D = HDR + 1
+    for i, (cat, target) in enumerate(_ACTUALS_CATS):
+        r  = D + i
+        bg = LGRAY if i % 2 == 0 else WHITE
+        ws.row_dimensions[r].height = 20
+
+        ws[f"B{r}"].value     = cat
+        ws[f"B{r}"].fill      = fill(bg)
+        ws[f"B{r}"].font      = font(size=9, bold=True)
+        ws[f"B{r}"].alignment = align("left","center")
+
+        ws[f"C{r}"].value         = target
+        ws[f"C{r}"].fill          = fill(bg)
+        ws[f"C{r}"].font          = Font(size=9, color=BLUE, name="Calibri")
+        ws[f"C{r}"].alignment     = align("center","center")
+        ws[f"C{r}"].number_format = '"$"#,##0.00'
+
+        # ACTUAL: SUMIFS(amounts, final_cat = this cat, month = C4)
+        actual_fx = (f"=SUMIFS({_TXN_D},{_TXN_G},$B{r},{_TXN_H},$C$4)")
+        ws[f"D{r}"] = actual_fx
+        ws[f"D{r}"].fill          = fill(bg)
+        ws[f"D{r}"].font          = Font(size=9, color="7C3AED", name="Calibri")
+        ws[f"D{r}"].alignment     = align("center","center")
+        ws[f"D{r}"].number_format = '"$"#,##0.00'
+
+        # UNDER/OVER: Target − Actual (positive = under budget)
+        ws[f"E{r}"] = f"=C{r}-D{r}"
+        ws[f"E{r}"].fill          = fill(bg)
+        ws[f"E{r}"].font          = font(size=9)
+        ws[f"E{r}"].alignment     = align("center","center")
+        ws[f"E{r}"].number_format = '"$"#,##0.00;[Red]-"$"#,##0.00'
+
+    # TOTAL row
+    last_d = D + len(_ACTUALS_CATS) - 1
+    TOT = last_d + 1
+    ws.row_dimensions[TOT].height = 24
+    ws[f"B{TOT}"] = "TOTAL"
+    ws[f"B{TOT}"].fill      = fill(DARK)
+    ws[f"B{TOT}"].font      = Font(bold=True, size=9, color=WHITE, name="Calibri")
+    ws[f"B{TOT}"].alignment = align("left","center")
+    for col, fx in [
+        ("C", f"=SUM(C{D}:C{last_d})"),
+        ("D", f"=SUM(D{D}:D{last_d})"),
+        ("E", f"=C{TOT}-D{TOT}"),
+    ]:
+        ws[f"{col}{TOT}"] = fx
+        ws[f"{col}{TOT}"].fill          = fill(DARK)
+        ws[f"{col}{TOT}"].font          = Font(bold=True, size=9, color=WHITE, name="Calibri")
+        ws[f"{col}{TOT}"].alignment     = align("center","center")
+        ws[f"{col}{TOT}"].number_format = '"$"#,##0.00'
+
+    # Conditional formatting on E (UNDER/OVER): green if positive, red if negative
+    gf = PatternFill("solid", fgColor=LGREEN)
+    rf = PatternFill("solid", fgColor=LRED)
+    gn = Font(color="065F46", bold=True, size=9, name="Calibri")
+    rn = Font(color="991B1B", bold=True, size=9, name="Calibri")
+    ws.conditional_formatting.add(
+        f"E{D}:E{last_d}",
+        CellIsRule(operator="greaterThan", formula=["0"], fill=gf, font=gn))
+    ws.conditional_formatting.add(
+        f"E{D}:E{last_d}",
+        CellIsRule(operator="lessThan", formula=["0"], fill=rf, font=rn))
+
+    # Explanation note
+    note_r = TOT + 2
+    ws.merge_cells(f"A{note_r}:E{note_r}")
+    ws[f"A{note_r}"] = (
+        "How it works: paste transactions on the Transactions tab → "
+        "AUTO CAT fills from Category Rules → this table sums by category for the month you typed. "
+        "Utilities (Water/Power/Internet/Trash) are tracked separately in bills.csv + Monthly Check-In. "
+        "Green + UNDER means you're below target — any surplus on flex categories sweeps to savings."
+    )
+    ws[f"A{note_r}"].fill      = fill(ABLUE)
+    ws[f"A{note_r}"].font      = font(italic=True, size=9, color=BLUE)
+    ws[f"A{note_r}"].alignment = align("left","center", wrap=True)
+    ws.row_dimensions[note_r].height = 52
+
+    return ws
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 def main():
@@ -859,6 +1252,9 @@ def main():
     build_checkin(wb, monthly)
     build_per_utility(wb, monthly)
     build_calendar(wb)
+    build_category_rules(wb)
+    build_transactions(wb)
+    build_monthly_actuals(wb)
 
     wb.save(OUT_FILE)
     print(f"Saved → {OUT_FILE}")
